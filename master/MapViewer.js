@@ -78045,14 +78045,21 @@ var init_SessionStorage = __esmMin((() => {
 		LangType: 0,
 		ServerName: null,
 		ratesInfo: null,
-		Character: null,
+		/** @type {Player|Entity|null} The entity currently controlled by the client */
 		Entity: null,
 		AdminList: [],
 		underAutoCounter: false,
 		moveAction: null,
-		zeny: 0,
-		weight: 0,
-		max_weight: 0,
+		/**
+		* Player money, stored on the player entity.
+		* Kept here as an accessor for the many consumers reading it from the session.
+		*/
+		get zeny() {
+			return this.Entity ? this.Entity.money : 0;
+		},
+		set zeny(value) {
+			if (this.Entity) this.Entity.money = value;
+		},
 		petId: 0,
 		pet: {},
 		hasParty: false,
@@ -145204,12 +145211,14 @@ function internalCalculateObjectSize(object, serializeFunctions, ignoreUndefined
 		const { obj, ignoreUndefined: frameIgnoreUndefined } = objectStack.pop();
 		total += 5;
 		const isObjArray = Array.isArray(obj);
+		const isObjMap = !isObjArray && (obj instanceof Map || isMap(obj));
 		let target = obj;
-		if (!isObjArray && typeof obj?.toBSON === "function") target = obj.toBSON();
+		if (!isObjArray && !isObjMap && typeof obj?.toBSON === "function") target = obj.toBSON();
 		if (isObjArray) {
 			const array = target;
 			for (let i = 0; i < array.length; i++) total += calculateElementSize(i.toString(), array[i], serializeFunctions, true, frameIgnoreUndefined, objectStack);
-		} else for (const key of Object.keys(target)) total += calculateElementSize(key, target[key], serializeFunctions, false, frameIgnoreUndefined, objectStack);
+		} else if (isObjMap) for (const [key, value] of target) total += calculateElementSize(key, value, serializeFunctions, false, frameIgnoreUndefined, objectStack);
+		else for (const key of Object.keys(target)) total += calculateElementSize(key, target[key], serializeFunctions, false, frameIgnoreUndefined, objectStack);
 	}
 	return total;
 }
@@ -145232,6 +145241,7 @@ function calculateElementSize(name, value, serializeFunctions = false, isArray =
 		else if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer || isAnyArrayBuffer(value)) return ByteUtils.utf8ByteLength(name) + 1 + 6 + value.byteLength;
 		else if (value._bsontype === "Long" || value._bsontype === "Double" || value._bsontype === "Timestamp") return ByteUtils.utf8ByteLength(name) + 1 + 9;
 		else if (value._bsontype === "Decimal128") return ByteUtils.utf8ByteLength(name) + 1 + 17;
+		else if (value._bsontype === "Int32") return ByteUtils.utf8ByteLength(name) + 1 + 5;
 		else if (value._bsontype === "Code") {
 			if (value.scope != null && Object.keys(value.scope).length > 0) {
 				objectStack.push({
@@ -145244,7 +145254,7 @@ function calculateElementSize(name, value, serializeFunctions = false, isArray =
 			const binary = value;
 			if (binary.sub_type === Binary.SUBTYPE_BYTE_ARRAY) return ByteUtils.utf8ByteLength(name) + 1 + (binary.position + 1 + 4 + 1 + 4);
 			else return ByteUtils.utf8ByteLength(name) + 1 + (binary.position + 1 + 4 + 1);
-		} else if (value._bsontype === "Symbol") return ByteUtils.utf8ByteLength(name) + 1 + ByteUtils.utf8ByteLength(value.value) + 4 + 1 + 1;
+		} else if (value._bsontype === "BSONSymbol") return ByteUtils.utf8ByteLength(name) + 1 + ByteUtils.utf8ByteLength(value.value) + 4 + 1 + 1;
 		else if (value._bsontype === "DBRef") {
 			const ordered_values = Object.assign({
 				$ref: value.collection,
@@ -145399,9 +145409,7 @@ function deserializeObject(buffer, index, options, isArray = false) {
 			value = ByteUtils.toUTF8(buffer, index, index + stringSize - 1, shouldValidateKey);
 			index = index + stringSize;
 		} else if (elementType === BSON_DATA_OID) {
-			const oid = ByteUtils.allocateUnsafe(12);
-			for (let i = 0; i < 12; i++) oid[i] = buffer[index + i];
-			value = new ObjectId(oid);
+			value = new ObjectId(buffer, index);
 			index = index + 12;
 		} else if (elementType === BSON_DATA_INT && promoteValues === false) {
 			value = new Int32(NumberUtils.getInt32LE(buffer, index));
@@ -146110,7 +146118,7 @@ function serializeValue(value, options) {
 	if (Array.isArray(value)) return serializeArray(value, options);
 	if (value === void 0) return options.ignoreUndefined ? void 0 : null;
 	if (value instanceof Date || isDate$1(value)) {
-		const dateNum = value.getTime(), inRange = dateNum > -1 && dateNum < 0xe677d3328480;
+		const dateNum = value.getTime(), inRange = dateNum > -1 && dateNum < 0xe677d21fdc00;
 		if (options.legacy) return options.relaxed && inRange ? { $date: value.getTime() } : { $date: getISOString(value) };
 		return options.relaxed && inRange ? { $date: getISOString(value) } : { $date: { $numberLong: value.getTime().toString() } };
 	}
@@ -146312,7 +146320,7 @@ function deserializeStream(data, startIndex, numberOfDocuments, documents, docSt
 	}
 	return index;
 }
-var TypedArrayPrototypeGetSymbolToStringTag, BSON_MAJOR_VERSION, BSON_VERSION_SYMBOL, BSON_INT32_MAX, BSON_INT32_MIN, BSON_INT64_MAX, BSON_INT64_MIN, JS_INT_MAX, JS_INT_MIN, BSON_DATA_NUMBER, BSON_DATA_STRING, BSON_DATA_OBJECT, BSON_DATA_ARRAY, BSON_DATA_BINARY, BSON_DATA_UNDEFINED, BSON_DATA_OID, BSON_DATA_BOOLEAN, BSON_DATA_DATE, BSON_DATA_NULL, BSON_DATA_REGEXP, BSON_DATA_DBPOINTER, BSON_DATA_CODE, BSON_DATA_SYMBOL, BSON_DATA_CODE_W_SCOPE, BSON_DATA_INT, BSON_DATA_TIMESTAMP, BSON_DATA_LONG, BSON_DATA_DECIMAL128, BSON_DATA_MIN_KEY, BSON_DATA_MAX_KEY, BSON_BINARY_SUBTYPE_DEFAULT, BSON_BINARY_SUBTYPE_UUID_NEW, BSONType, BSONError, BSONVersionError, BSONRuntimeError, BSONOffsetError, TextDecoderFatal, TextDecoderNonFatal, nodeJsByteUtils, webRandomBytes, HEX_DIGIT, webByteUtils, ByteUtils, bsonType, BSONValue, FLOAT, FLOAT_BYTES, isBigEndian, NumberUtils, Binary, UUID_BYTE_LENGTH, UUID_WITHOUT_DASHES, UUID_WITH_DASHES, UUID, Code, DBRef, wasm, TWO_PWR_16_DBL, TWO_PWR_24_DBL, TWO_PWR_32_DBL, TWO_PWR_64_DBL, TWO_PWR_63_DBL, INT_CACHE, UINT_CACHE, MAX_INT64_STRING_LENGTH, DECIMAL_REG_EX, Long, PARSE_STRING_REGEXP, PARSE_INF_REGEXP, PARSE_NAN_REGEXP, EXPONENT_MAX, EXPONENT_MIN, EXPONENT_BIAS, MAX_DIGITS, NAN_BUFFER, INF_NEGATIVE_BUFFER, INF_POSITIVE_BUFFER, EXPONENT_REGEX, COMBINATION_MASK, EXPONENT_MASK, COMBINATION_INFINITY, COMBINATION_NAN, Decimal128, Double, Int32, MaxKey, MinKey, __idCache, ObjectId, BSONRegExp, BSONSymbol, LongWithoutOverridesClass, Timestamp, JS_INT_MAX_LONG, JS_INT_MIN_LONG, allowedDBRefKeys, regexp, ignoreKeys, keysToCodecs, BSON_TYPE_MAPPINGS, EJSON, BSONElementType, onDemand, MAXSIZE, buffer, bson;
+var TypedArrayPrototypeGetSymbolToStringTag, BSON_MAJOR_VERSION, BSON_VERSION_SYMBOL, BSON_INT32_MAX, BSON_INT32_MIN, BSON_INT64_MAX, BSON_INT64_MIN, JS_INT_MAX, JS_INT_MIN, BSON_DATA_NUMBER, BSON_DATA_STRING, BSON_DATA_OBJECT, BSON_DATA_ARRAY, BSON_DATA_BINARY, BSON_DATA_UNDEFINED, BSON_DATA_OID, BSON_DATA_BOOLEAN, BSON_DATA_DATE, BSON_DATA_NULL, BSON_DATA_REGEXP, BSON_DATA_DBPOINTER, BSON_DATA_CODE, BSON_DATA_SYMBOL, BSON_DATA_CODE_W_SCOPE, BSON_DATA_INT, BSON_DATA_TIMESTAMP, BSON_DATA_LONG, BSON_DATA_DECIMAL128, BSON_DATA_MIN_KEY, BSON_DATA_MAX_KEY, BSON_BINARY_SUBTYPE_DEFAULT, BSON_BINARY_SUBTYPE_UUID_NEW, BSONType, BSONError, BSONVersionError, BSONRuntimeError, BSONOffsetError, TextDecoderFatal, TextDecoderNonFatal, nodeJsByteUtils, webRandomBytes, HEX_DIGIT, webByteUtils, ByteUtils, bsonType, BSONValue, FLOAT, FLOAT_BYTES, isBigEndian, NumberUtils, Binary, UUID_BYTE_LENGTH, UUID_WITHOUT_DASHES, UUID_WITH_DASHES, UUID, Code, DBRef, wasm, TWO_PWR_16_DBL, TWO_PWR_24_DBL, TWO_PWR_32_DBL, TWO_PWR_64_DBL, TWO_PWR_63_DBL, INT_CACHE, UINT_CACHE, MAX_INT64_STRING_LENGTH, DECIMAL_REG_EX, Long, PARSE_STRING_REGEXP, PARSE_INF_REGEXP, PARSE_NAN_REGEXP, EXPONENT_MAX, EXPONENT_MIN, EXPONENT_BIAS, MAX_DIGITS, NAN_BUFFER, INF_NEGATIVE_BUFFER, INF_POSITIVE_BUFFER, EXPONENT_REGEX, COMBINATION_MASK, EXPONENT_MASK, COMBINATION_INFINITY, COMBINATION_NAN, Decimal128, Double, Int32, MaxKey, MinKey, __idCache, byteToHex, hexCharCodeToNibble, ObjectId, BSONRegExp, BSONSymbol, LongWithoutOverridesClass, Timestamp, JS_INT_MAX_LONG, JS_INT_MIN_LONG, allowedDBRefKeys, regexp, ignoreKeys, keysToCodecs, BSON_TYPE_MAPPINGS, EJSON, BSONElementType, onDemand, MAXSIZE, buffer, bson;
 var init_bson = __esmMin((() => {
 	TypedArrayPrototypeGetSymbolToStringTag = (() => {
 		const g = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), Symbol.toStringTag).get;
@@ -148509,6 +148517,12 @@ var init_bson = __esmMin((() => {
 		}
 	};
 	__idCache = /* @__PURE__ */ new WeakMap();
+	byteToHex = [];
+	for (let n = 0; n < 256; n++) byteToHex.push(n.toString(16).padStart(2, "0"));
+	hexCharCodeToNibble = /* @__PURE__ */ new Int8Array(103);
+	for (let c = 48; c <= 57; c++) hexCharCodeToNibble[c] = c - 48;
+	for (let c = 65; c <= 70; c++) hexCharCodeToNibble[c] = c - 55;
+	for (let c = 97; c <= 102; c++) hexCharCodeToNibble[c] = c - 87;
 	ObjectId = class ObjectId extends BSONValue {
 		get _bsontype() {
 			return "ObjectId";
@@ -148517,7 +148531,7 @@ var init_bson = __esmMin((() => {
 		static PROCESS_UNIQUE = null;
 		static resetState = () => {
 			this.index = Math.floor(Math.random() * 16777216);
-			this.PROCESS_UNIQUE = ByteUtils.randomBytes(5);
+			this.PROCESS_UNIQUE = null;
 		};
 		static {
 			this.resetState();
@@ -148525,30 +148539,78 @@ var init_bson = __esmMin((() => {
 			if (startupSnapshot?.isBuildingSnapshot?.()) startupSnapshot?.addDeserializeCallback?.(this.resetState);
 		}
 		static cacheHexString;
-		buffer;
-		constructor(inputId) {
+		i0;
+		i1;
+		i2;
+		i3;
+		setFromBytes(b, offset = 0) {
+			this.i0 = b[offset] << 16 | b[offset + 1] << 8 | b[offset + 2];
+			this.i1 = b[offset + 3] << 16 | b[offset + 4] << 8 | b[offset + 5];
+			this.i2 = b[offset + 6] << 16 | b[offset + 7] << 8 | b[offset + 8];
+			this.i3 = b[offset + 9] << 16 | b[offset + 10] << 8 | b[offset + 11];
+		}
+		setFromHex(s) {
+			const t = hexCharCodeToNibble;
+			this.i0 = t[s.charCodeAt(0)] << 20 | t[s.charCodeAt(1)] << 16 | t[s.charCodeAt(2)] << 12 | t[s.charCodeAt(3)] << 8 | t[s.charCodeAt(4)] << 4 | t[s.charCodeAt(5)];
+			this.i1 = t[s.charCodeAt(6)] << 20 | t[s.charCodeAt(7)] << 16 | t[s.charCodeAt(8)] << 12 | t[s.charCodeAt(9)] << 8 | t[s.charCodeAt(10)] << 4 | t[s.charCodeAt(11)];
+			this.i2 = t[s.charCodeAt(12)] << 20 | t[s.charCodeAt(13)] << 16 | t[s.charCodeAt(14)] << 12 | t[s.charCodeAt(15)] << 8 | t[s.charCodeAt(16)] << 4 | t[s.charCodeAt(17)];
+			this.i3 = t[s.charCodeAt(18)] << 20 | t[s.charCodeAt(19)] << 16 | t[s.charCodeAt(20)] << 12 | t[s.charCodeAt(21)] << 8 | t[s.charCodeAt(22)] << 4 | t[s.charCodeAt(23)];
+		}
+		constructor(inputId, offset) {
 			super();
+			if (typeof offset === "number") {
+				this.setFromBytes(inputId, offset);
+				return;
+			}
 			let workingId;
 			if (typeof inputId === "object" && inputId && "id" in inputId) {
+				if (ObjectId.is(inputId) && typeof inputId.i0 === "number" && typeof inputId.i1 === "number" && typeof inputId.i2 === "number" && typeof inputId.i3 === "number") {
+					this.i0 = inputId.i0;
+					this.i1 = inputId.i1;
+					this.i2 = inputId.i2;
+					this.i3 = inputId.i3;
+					return;
+				}
 				if (typeof inputId.id !== "string" && !ArrayBuffer.isView(inputId.id)) throw new BSONError("Argument passed in must have an id that is of type string or Buffer");
 				if ("toHexString" in inputId && typeof inputId.toHexString === "function") workingId = ByteUtils.fromHex(inputId.toHexString());
 				else workingId = inputId.id;
 			} else workingId = inputId;
-			if (workingId == null) this.buffer = ObjectId.generate();
-			else if (ArrayBuffer.isView(workingId) && workingId.byteLength === 12) this.buffer = ByteUtils.toLocalBufferType(workingId);
+			if (workingId == null) {
+				const time = Math.floor(Date.now() / 1e3);
+				const inc = ObjectId.getInc();
+				const pu = ObjectId.PROCESS_UNIQUE ??= ByteUtils.randomBytes(5);
+				this.i0 = time >>> 8 & 16777215;
+				this.i1 = (time & 255) << 16 | pu[0] << 8 | pu[1];
+				this.i2 = pu[2] << 16 | pu[3] << 8 | pu[4];
+				this.i3 = inc & 16777215;
+			} else if (ArrayBuffer.isView(workingId) && workingId.byteLength === 12) this.setFromBytes(workingId instanceof Uint8Array ? workingId : ByteUtils.toLocalBufferType(workingId));
 			else if (typeof workingId === "string") {
 				if (ObjectId.validateHexString(workingId)) {
-					this.buffer = ByteUtils.fromHex(workingId);
+					this.setFromHex(workingId);
 					if (ObjectId.cacheHexString) __idCache.set(this, workingId);
 				} else throw new BSONError("input must be a 24 character hex string, 12 byte Uint8Array, or an integer");
 			} else throw new BSONError("Argument passed in does not match the accepted types");
 		}
 		get id() {
-			return this.buffer;
+			const b = ByteUtils.allocateUnsafe(12);
+			b[0] = this.i0 >>> 16 & 255;
+			b[1] = this.i0 >>> 8 & 255;
+			b[2] = this.i0 & 255;
+			b[3] = this.i1 >>> 16 & 255;
+			b[4] = this.i1 >>> 8 & 255;
+			b[5] = this.i1 & 255;
+			b[6] = this.i2 >>> 16 & 255;
+			b[7] = this.i2 >>> 8 & 255;
+			b[8] = this.i2 & 255;
+			b[9] = this.i3 >>> 16 & 255;
+			b[10] = this.i3 >>> 8 & 255;
+			b[11] = this.i3 & 255;
+			return b;
 		}
 		set id(value) {
-			this.buffer = value;
-			if (ObjectId.cacheHexString) __idCache.set(this, ByteUtils.toHex(value));
+			const bytes = value instanceof Uint8Array ? value : ByteUtils.toLocalBufferType(value);
+			this.setFromBytes(bytes);
+			if (ObjectId.cacheHexString) __idCache.set(this, ByteUtils.toHex(bytes));
 		}
 		static validateHexString(string) {
 			if (string?.length !== 24) return false;
@@ -148564,7 +148626,11 @@ var init_bson = __esmMin((() => {
 				const __id = __idCache.get(this);
 				if (__id) return __id;
 			}
-			const hexString = ByteUtils.toHex(this.id);
+			const i0 = this.i0;
+			const i1 = this.i1;
+			const i2 = this.i2;
+			const i3 = this.i3;
+			const hexString = byteToHex[i0 >>> 16 & 255] + byteToHex[i0 >>> 8 & 255] + byteToHex[i0 & 255] + byteToHex[i1 >>> 16 & 255] + byteToHex[i1 >>> 8 & 255] + byteToHex[i1 & 255] + byteToHex[i2 >>> 16 & 255] + byteToHex[i2 >>> 8 & 255] + byteToHex[i2 & 255] + byteToHex[i3 >>> 16 & 255] + byteToHex[i3 >>> 8 & 255] + byteToHex[i3 & 255];
 			if (ObjectId.cacheHexString) __idCache.set(this, hexString);
 			return hexString;
 		}
@@ -148576,15 +148642,15 @@ var init_bson = __esmMin((() => {
 			const inc = ObjectId.getInc();
 			const buffer = ByteUtils.allocateUnsafe(12);
 			NumberUtils.setInt32BE(buffer, 0, time);
-			const PROCESS_UNIQUE = this.PROCESS_UNIQUE;
+			const PROCESS_UNIQUE = this.PROCESS_UNIQUE ??= ByteUtils.randomBytes(5);
 			buffer[4] = PROCESS_UNIQUE[0];
 			buffer[5] = PROCESS_UNIQUE[1];
 			buffer[6] = PROCESS_UNIQUE[2];
 			buffer[7] = PROCESS_UNIQUE[3];
 			buffer[8] = PROCESS_UNIQUE[4];
 			buffer[11] = inc & 255;
-			buffer[10] = inc >> 8 & 255;
-			buffer[9] = inc >> 16 & 255;
+			buffer[10] = inc >>> 8 & 255;
+			buffer[9] = inc >>> 16 & 255;
 			return buffer;
 		}
 		toString(encoding) {
@@ -148600,7 +148666,7 @@ var init_bson = __esmMin((() => {
 		}
 		equals(otherId) {
 			if (otherId === void 0 || otherId === null) return false;
-			if (ObjectId.is(otherId)) return this.buffer[11] === otherId.buffer[11] && ByteUtils.equals(this.buffer, otherId.buffer);
+			if (ObjectId.is(otherId) && typeof otherId.i0 === "number" && typeof otherId.i1 === "number" && typeof otherId.i2 === "number" && typeof otherId.i3 === "number") return this.i3 === otherId.i3 && this.i0 === otherId.i0 && this.i1 === otherId.i1 && this.i2 === otherId.i2;
 			if (typeof otherId === "string") return otherId.toLowerCase() === this.toHexString();
 			if (typeof otherId === "object" && typeof otherId.toHexString === "function") {
 				const otherIdString = otherId.toHexString();
@@ -148611,26 +148677,26 @@ var init_bson = __esmMin((() => {
 		}
 		getTimestamp() {
 			const timestamp = /* @__PURE__ */ new Date();
-			const time = NumberUtils.getUint32BE(this.buffer, 0);
-			timestamp.setTime(Math.floor(time) * 1e3);
+			const time = this.i0 * 256 + (this.i1 >>> 16);
+			timestamp.setTime(time * 1e3);
 			return timestamp;
 		}
 		static createPk() {
 			return new ObjectId();
 		}
 		serializeInto(uint8array, index) {
-			uint8array[index] = this.buffer[0];
-			uint8array[index + 1] = this.buffer[1];
-			uint8array[index + 2] = this.buffer[2];
-			uint8array[index + 3] = this.buffer[3];
-			uint8array[index + 4] = this.buffer[4];
-			uint8array[index + 5] = this.buffer[5];
-			uint8array[index + 6] = this.buffer[6];
-			uint8array[index + 7] = this.buffer[7];
-			uint8array[index + 8] = this.buffer[8];
-			uint8array[index + 9] = this.buffer[9];
-			uint8array[index + 10] = this.buffer[10];
-			uint8array[index + 11] = this.buffer[11];
+			uint8array[index] = this.i0 >>> 16 & 255;
+			uint8array[index + 1] = this.i0 >>> 8 & 255;
+			uint8array[index + 2] = this.i0 & 255;
+			uint8array[index + 3] = this.i1 >>> 16 & 255;
+			uint8array[index + 4] = this.i1 >>> 8 & 255;
+			uint8array[index + 5] = this.i1 & 255;
+			uint8array[index + 6] = this.i2 >>> 16 & 255;
+			uint8array[index + 7] = this.i2 >>> 8 & 255;
+			uint8array[index + 8] = this.i2 & 255;
+			uint8array[index + 9] = this.i3 >>> 16 & 255;
+			uint8array[index + 10] = this.i3 >>> 8 & 255;
+			uint8array[index + 11] = this.i3 & 255;
 			return 12;
 		}
 		static createFromTime(time) {
@@ -226622,8 +226688,8 @@ function createPartyFriends(config) {
 		* Save the current positions of all detached member windows to character-specific localStorage.
 		*/
 		Component.saveDetachedMembers = function() {
-			if (!SessionStorage_default.Character || !SessionStorage_default.Character.name) return;
-			const key = `PartyFriends_${SessionStorage_default.Character.name}_Detached`;
+			if (!SessionStorage_default.Entity?.display?.name) return;
+			const key = `PartyFriends_${SessionStorage_default.Entity.display.name}_Detached`;
 			const saved = {};
 			let count = 0;
 			for (const aid in _detachedMembers) {
@@ -226637,7 +226703,7 @@ function createPartyFriends(config) {
 				}
 			}
 			localStorage.setItem(key, JSON.stringify(saved));
-			if (count > 0) console.log(`[PartyFriendsV1] Saved ${count} detached windows for ${SessionStorage_default.Character.name}`);
+			if (count > 0) console.log(`[PartyFriendsV1] Saved ${count} detached windows for ${SessionStorage_default.Entity.display.name}`);
 		};
 	} else {
 		/**
@@ -226991,9 +227057,9 @@ function createPartyFriends(config) {
 	*/
 	function restoreDetachedMember(player) {
 		if (_detachedMembers[player.AID]) return;
-		if (!SessionStorage_default.Character || !SessionStorage_default.Character.name) return;
+		if (!SessionStorage_default.Entity?.display?.name) return;
 		if (_savedPositions === null) {
-			const key = `PartyFriends_${SessionStorage_default.Character.name}_Detached`;
+			const key = `PartyFriends_${SessionStorage_default.Entity.display.name}_Detached`;
 			const savedStr = localStorage.getItem(key);
 			_savedPositions = {};
 			try {
@@ -229028,7 +229094,7 @@ var init_Guild$1 = __esmMin((() => {
 		SessionStorage_default.guildName = info.guildname || "";
 		SessionStorage_default.Entity.GUID = info.GDID;
 		SessionStorage_default.Entity.GEmblemVer = info.emblemVersion;
-		if (SessionStorage_default.Character.name === info.masterName) SessionStorage_default.isGuildMaster = true;
+		if (SessionStorage_default.Entity.display.name === info.masterName) SessionStorage_default.isGuildMaster = true;
 	};
 	Guild.onRequestGuildEmblem = function() {};
 	Guild.onSendEmblem = function() {};
@@ -230909,10 +230975,7 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 			return;
 		}
 		root.querySelectorAll(".upgradable").forEach((el) => el.classList.remove("upgradable"));
-		let skillJobId = SessionStorage_default.Character.job;
-		const originalJobId = SessionStorage_default.Entity._job;
-		if (originalJobId && originalJobId !== SessionStorage_default.Character.job) skillJobId = originalJobId;
-		skillPosition = getSkillPosition(skillJobId);
+		skillPosition = getSkillPosition(SessionStorage_default.Entity._job || SessionStorage_default.Entity.job);
 		createSkillDependencyTree();
 		for (let i = 0, count = _list.length; i < count; ++i) this.onUpdateSkill(_list[i].SKID, 0);
 		_list.length = 0;
@@ -234136,7 +234199,6 @@ function createBasicInfo(config) {
 				break;
 			}
 			case "job":
-				SessionStorage_default.Character.job = val1;
 				root.querySelectorAll(".job_value").forEach((el) => {
 					el.textContent = MonsterTable_default[val1];
 				});
@@ -238117,7 +238179,7 @@ function onClickSend(e) {
 		return;
 	}
 	const receiver = WriteRodex.receiver;
-	const sender = SessionStorage_default.Character.name;
+	const sender = SessionStorage_default.Entity.display.name;
 	let zeny = parseInt(root.querySelector(".value").value, 10);
 	zeny = isNaN(zeny) ? 0 : zeny;
 	zeny = zeny < 0 ? 0 : zeny;
@@ -245366,26 +245428,26 @@ var init_AIDriver = __esmMin((() => {
 					return res[1], res[2]
 				end
 				return res
-			end	
-			function GetMsg(id)  
-				local res = GetMsgJS(id)  
-				local result = {}  
-				local i = 0  
-				while res[i] ~= nil do  
-					result[i + 1] = res[i]  
-					i = i + 1  
-				end  
-				return result  
-			end  
-			function GetResMsg(id)  
-				local res = GetResMsgJS(id)  
-				local result = {}  
-				local i = 0  
-				while res[i] ~= nil do  
-					result[i + 1] = res[i]  
-					i = i + 1  
-				end  
-				return result  
+			end
+			function GetMsg(id)
+				local res = GetMsgJS(id)
+				local result = {}
+				local i = 0
+				while res[i] ~= nil do
+					result[i + 1] = res[i]
+					i = i + 1
+				end
+				return result
+			end
+			function GetResMsg(id)
+				local res = GetResMsgJS(id)
+				local result = {}
+				local i = 0
+				while res[i] ~= nil do
+					result[i + 1] = res[i]
+					i = i + 1
+				end
+				return result
 			end
 		`);
 				ctx.log = (logMessage) => {
@@ -301621,7 +301683,19 @@ function computeWalkStartTick(nowTick, moveStartTime, pathDuration, maxClamp) {
 	return nowTick - elapsed;
 }
 /**
-* Walk save structure
+* WalkStructure — pathfinding movement controller for entity walking
+*
+* @class WalkStructure
+* @property {number} speed Movement speed in ms per cell
+* @property {number} tick Walk movement start tick
+* @property {number} prevTick Previous tick frame
+* @property {number} dist Walk distance accumulated in map cells
+* @property {Int16Array} path Array of cell coordinate pairs [x0, y0, x1, y1, ...]
+* @property {Float32Array} pos [x, y, z] target position
+* @property {Float32Array} lastPos [x, y, z] previous position
+* @property {function|null} onEnd Callback fired when entity reaches path end
+* @property {number} index Current segment index in path
+* @property {number} total Total number of coordinate values in path
 */
 function WalkStructure() {
 	this.speed = 150;
@@ -303143,13 +303217,13 @@ function updateEffectState(value) {
 	if (value & StatusState_default.EffectState.SUMMER) costume = 27;
 	if (value & StatusState_default.EffectState.INVISIBLE) this._effectStateColor[3] = 0;
 	else if (value & (StatusState_default.EffectState.HIDE | StatusState_default.EffectState.CLOAK | StatusState_default.EffectState.CHASEWALK)) {
-		if (SessionStorage_default.Character.intravision) {
+		if (SessionStorage_default.Entity?.intravision) {
 			this._effectStateColor[0] = 0;
 			this._effectStateColor[1] = 0;
 			this._effectStateColor[2] = 0;
 		} else this._effectStateColor[3] = 0;
 	} else if (this.Camouflage || this.Stealthfield) {
-		if (SessionStorage_default.Character.intravision) {
+		if (SessionStorage_default.Entity?.intravision) {
 			this._effectStateColor[0] = 0;
 			this._effectStateColor[1] = 0;
 			this._effectStateColor[2] = 0;
@@ -303158,7 +303232,7 @@ function updateEffectState(value) {
 			SoundManager.play("effect/assasin_cloaking.wav");
 		}
 	} else if (this.Shadowform) {
-		if (SessionStorage_default.Character.intravision) {
+		if (SessionStorage_default.Entity?.intravision) {
 			this._effectStateColor[0] = 0;
 			this._effectStateColor[1] = 0;
 			this._effectStateColor[2] = 0;
@@ -304037,6 +304111,9 @@ var init_Entity$1 = __esmMin((() => {
 				case "hideShadow":
 					this.hideShadow = unit.hideShadow;
 					break;
+				case "level":
+					this.clevel = unit.level;
+					break;
 				default: if (Entity.prototype.hasOwnProperty(keys[i]) || Entity.prototype.hasOwnProperty(`_${keys[i]}`)) this[keys[i]] = unit[keys[i]];
 			}
 			if (this.life.hp > -1 && this.life.hp_max > -1) {
@@ -304234,6 +304311,31 @@ var init_Entity$1 = __esmMin((() => {
 	Entity.prototype.wug = null;
 	Entity.prototype.hideShadow = false;
 	Entity.prototype.call_flag = 0;
+	Object.defineProperty(Entity.prototype, "level", {
+		get() {
+			return this.clevel;
+		},
+		set(val) {
+			this.clevel = val;
+		},
+		enumerable: true,
+		configurable: true
+	});
+	/**
+	* Player-specific fields — declared on Entity.prototype so Entity.set() can
+	* auto-map them from server packets (charselect, status updates, etc.).
+	*
+	* The whitelist gate in set() uses Entity.prototype.hasOwnProperty() which does
+	* NOT walk the prototype chain, so any field only on Player.prototype is
+	* invisible to it. Entity.prototype already hosts player-specific state
+	* (clevel, hasCart, falcon, call_flag, etc.), so this follows the established
+	* pattern.
+	*/
+	Entity.prototype.joblevel = 0;
+	Entity.prototype.money = 0;
+	Entity.prototype.weight = 0;
+	Entity.prototype.max_weight = 0;
+	Entity.prototype.intravision = false;
 	/**
 	* @var {integer} tick to remove
 	*/
@@ -306381,8 +306483,38 @@ var init_MobileUI$1 = __esmMin((() => {
 function bindButton(root, selector, handler) {
 	const el = root.querySelector(selector);
 	if (el) {
-		el.addEventListener("click", handler);
-		el.addEventListener("touchstart", handler);
+		let touchHandled = false;
+		let releaseTimer = null;
+		const clearGuard = () => {
+			if (releaseTimer !== null) {
+				clearTimeout(releaseTimer);
+				releaseTimer = null;
+			}
+		};
+		const releaseGuard = () => {
+			clearGuard();
+			releaseTimer = setTimeout(() => {
+				releaseTimer = null;
+				touchHandled = false;
+			}, C_TOUCH_CLICK_GUARD);
+		};
+		el.addEventListener("click", (event) => {
+			if (touchHandled) {
+				touchHandled = false;
+				clearGuard();
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				return;
+			}
+			handler(event);
+		});
+		el.addEventListener("touchstart", (event) => {
+			touchHandled = true;
+			clearGuard();
+			handler(event);
+		});
+		el.addEventListener("touchend", releaseGuard);
+		el.addEventListener("touchcancel", releaseGuard);
 	}
 }
 /**
@@ -306912,7 +307044,7 @@ function isFreeCell$2(x, y) {
 	});
 	return free;
 }
-var vec2, mat2, direction, rotate, targetPos, movementTimer, MobileUI, _preferences$17, showButtons, C_AUTOTARGET_DELAY, centerX, centerY, maxDistance, normalizedX, normalizedY, _joystickBase, _joystickThumb, MobileUI_default;
+var vec2, mat2, direction, rotate, targetPos, movementTimer, MobileUI, _preferences$17, showButtons, C_AUTOTARGET_DELAY, C_TOUCH_CLICK_GUARD, centerX, centerY, maxDistance, normalizedX, normalizedY, _joystickBase, _joystickThumb, MobileUI_default;
 var init_MobileUI = __esmMin((() => {
 	init_Context();
 	init_UIManager();
@@ -306950,6 +307082,7 @@ var init_MobileUI = __esmMin((() => {
 	}, 1);
 	showButtons = false;
 	C_AUTOTARGET_DELAY = 500;
+	C_TOUCH_CLICK_GUARD = 750;
 	maxDistance = 0;
 	normalizedX = 0;
 	normalizedY = 0;
@@ -306999,7 +307132,7 @@ var init_MobileUI = __esmMin((() => {
 			["#yButton", 89],
 			["#uButton", 85],
 			["#iButton", 73],
-			["#oButton", 89],
+			["#oButton", 79],
 			["#aButton", 65],
 			["#sButton", 83],
 			["#dButton", 68],
@@ -309110,11 +309243,11 @@ function onMouseUp(event) {
 			if (entity) {
 				ET = entity.constructor;
 				entity.onMouseUp();
-				if (Controls_default.noctrl === false || ![
+				if (!SessionStorage_default.TouchTargeting && (Controls_default.noctrl === false || ![
 					ET.TYPE_MOB,
 					ET.TYPE_NPC_ABR,
 					ET.TYPE_NPC_BIONIC
-				].includes(entity.objecttype) && !SessionStorage_default.TouchTargeting) {
+				].includes(entity.objecttype))) {
 					EntityManager.setFocusEntity(null);
 					entity.onFocusEnd();
 				}
@@ -310824,7 +310957,7 @@ var init_ChangeCart = __esmMin((() => {
 		ChatBox_default.addText(msg, ChatBox_default.TYPE.PUBLIC | ChatBox_default.TYPE.SELF, ChatBox_default.FILTER.PUBLIC_LOG);
 		if (SessionStorage_default.Entity) SessionStorage_default.Entity.dialog.set(msg);
 		ChangeCart.ui.show();
-		updateList(SessionStorage_default.Character.level);
+		updateList(SessionStorage_default.Entity.clevel);
 		Renderer.stop(render$3);
 		Renderer.render(render$3);
 	};
@@ -316687,13 +316820,13 @@ function onParameterChange$1(pkt) {
 			if (BasicInfoController.getUI().job_exp > -1) BasicInfoController.getUI().update("jexp", BasicInfoController.getUI().job_exp, BasicInfoController.getUI().job_exp_next);
 			break;
 		case StatusProperty_default.WEIGHT:
-			SessionStorage_default.Character.weight = amount;
-			if (BasicInfoController.getUI().weight_max > -1) BasicInfoController.getUI().update("weight", SessionStorage_default.Character.weight, BasicInfoController.getUI().weight_max);
+			SessionStorage_default.Entity.weight = amount;
+			if (BasicInfoController.getUI().weight_max > -1) BasicInfoController.getUI().update("weight", SessionStorage_default.Entity.weight, BasicInfoController.getUI().weight_max);
 			break;
 		case StatusProperty_default.MAXWEIGHT:
-			SessionStorage_default.Character.max_weight = amount;
+			SessionStorage_default.Entity.max_weight = amount;
 			BasicInfoController.getUI().weight_max = amount;
-			if (BasicInfoController.getUI().weight > -1) BasicInfoController.getUI().update("weight", SessionStorage_default.Character.weight, BasicInfoController.getUI().weight_max);
+			if (BasicInfoController.getUI().weight > -1) BasicInfoController.getUI().update("weight", SessionStorage_default.Entity.weight, BasicInfoController.getUI().weight_max);
 			break;
 		case StatusProperty_default.STANDARD_STR:
 			WinStatsController.getUI().update("str3", amount);
@@ -318610,8 +318743,8 @@ function onEntityAction(pkt) {
 		});
 	}
 	if (pkt?.damage > 0) {
-		if (srcEntity.GID === SessionStorage_default.Character.GID) ChatBox_default.addText(DB.getMessage(1607).replace("%s", dstEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
-		else if (dstEntity.GID === SessionStorage_default.Character.GID) ChatBox_default.addText(DB.getMessage(1605).replace("%s", srcEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
+		if (srcEntity.GID === SessionStorage_default.Entity.GID) ChatBox_default.addText(DB.getMessage(1607).replace("%s", dstEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
+		else if (dstEntity.GID === SessionStorage_default.Entity.GID) ChatBox_default.addText(DB.getMessage(1605).replace("%s", srcEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
 		else if (srcEntity.GID === SessionStorage_default.homunId || srcEntity.GID === SessionStorage_default.merId || srcEntity.GID === SessionStorage_default.petId || srcEntity.GID === SessionStorage_default.elemId) ChatBox_default.addText(DB.getMessage(1608).replace("%s", srcEntity.display.name).replace("%s", dstEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
 		else if (dstEntity.GID === SessionStorage_default.homunId || dstEntity.GID === SessionStorage_default.merId || dstEntity.GID === SessionStorage_default.petId || dstEntity.GID === SessionStorage_default.elemId) ChatBox_default.addText(DB.getMessage(1606).replace("%s", dstEntity.display.name).replace("%s", srcEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.BATTLE);
 		else if (controller.isGroupMember(srcEntity.display.name)) ChatBox_default.addText(DB.getMessage(1608).replace("%s", srcEntity.display.name).replace("%s", dstEntity.display.name).replace("%d", pkt.damage), ChatBox_default.TYPE.INFO, ChatBox_default.FILTER.PARTY_BATTLE);
@@ -318812,16 +318945,15 @@ function onEntityViewChange(pkt) {
 				if (entity._job_transform || entity._monster_transform || entity._active_monster_transform) entity._job = pkt.value;
 				else entity.job = pkt.value;
 				if (entity === SessionStorage_default.Entity) {
-					SessionStorage_default.Character.job = pkt.value;
 					if (PacketVerManager_default.value >= 20200520) {
 						BasicInfoController.getUI().remove();
-						BasicInfoController.selectUIVersionWithJob(DB.getJobClass(SessionStorage_default.Character.job));
+						BasicInfoController.selectUIVersionWithJob(DB.getJobClass(pkt.value));
 						BasicInfoController.getUI().prepare();
-						BasicInfoController.getUI().update("blvl", SessionStorage_default.Character.level);
-						BasicInfoController.getUI().update("jlvl", SessionStorage_default.Character.joblevel);
-						BasicInfoController.getUI().update("zeny", SessionStorage_default.Character.money);
-						BasicInfoController.getUI().update("name", SessionStorage_default.Character.name);
-						BasicInfoController.getUI().update("bexp", SessionStorage_default.Character.exp, BasicInfoController.getUI().base_exp_next);
+						BasicInfoController.getUI().update("blvl", SessionStorage_default.Entity.clevel);
+						BasicInfoController.getUI().update("jlvl", SessionStorage_default.Entity.joblevel);
+						BasicInfoController.getUI().update("zeny", SessionStorage_default.Entity.money);
+						BasicInfoController.getUI().update("name", SessionStorage_default.Entity.display.name);
+						BasicInfoController.getUI().update("bexp", BasicInfoController.getUI().base_exp, BasicInfoController.getUI().base_exp_next);
 						BasicInfoController.getUI().append();
 					}
 					BasicInfoController.getUI().update("job", pkt.value);
@@ -319241,7 +319373,7 @@ function onEntityStatusChange(pkt) {
 	switch (pkt.index) {
 		case StatusConst_default.CLAIRVOYANCE:
 			if (entity === SessionStorage_default.Entity) {
-				SessionStorage_default.Character.intravision = pkt.state;
+				SessionStorage_default.Entity.intravision = pkt.state;
 				EntityManager.forEach((_entity) => {
 					/** @type {*} Intentional self-assignment to trigger effectState updates. */
 					_entity.effectState = _entity.effectState;
@@ -322606,7 +322738,7 @@ function onPrivateMessageSent(pkt) {
 	const msg = ChatBox_default.PrivateMessageStorage.msg;
 	if (pkt.result === 0) {
 		if (user && msg) {
-			if (getShouldOpenWhisperBox(user)) WhisperBox.addText(user, SessionStorage_default.Character.name + " : " + msg, "#ffff00");
+			if (getShouldOpenWhisperBox(user)) WhisperBox.addText(user, SessionStorage_default.Entity.display.name + " : " + msg, "#ffff00");
 			else ChatBox_default.addText("[ To <span class=\"nickname-link\" data-nickname=\"" + user + "\" style=\"cursor:pointer; text-decoration:underline;\">" + user + "</span> ] : " + msg, ChatBox_default.TYPE.PRIVATE, ChatBox_default.FILTER.WHISPER);
 		}
 	} else {
@@ -325996,7 +326128,7 @@ var init_NpcStore = __esmMin((() => {
 					const currencyItemWeight = parseInt(inputCurrency.getAttribute("data-weight"), 10);
 					const currencyAmount = parseInt(inputCurrencyDiv.textContent, 10);
 					const additionalWeight = currencyItemWeight * (outputItem.count - originalCount);
-					if (SessionStorage_default.Character.weight + NpcStore.calculateWeight() + additionalWeight > SessionStorage_default.Character.max_weight) {
+					if (SessionStorage_default.Entity.weight + NpcStore.calculateWeight() + additionalWeight > SessionStorage_default.Entity.max_weight) {
 						ChatBox_default.addText(DB.getMessage(56), ChatBox_default.TYPE.ERROR, ChatBox_default.FILTER.PUBLIC_LOG);
 						outputItem.count -= count;
 						return;
@@ -328212,7 +328344,8 @@ function onConfigNotify(pkt) {
 * @param {object} pkt - PACKET.ZC.AID
 */
 function onReceiveAccountID(pkt) {
-	SessionStorage_default.Character.GID = pkt.AID;
+	SessionStorage_default.AID = pkt.AID;
+	SessionStorage_default.Entity.GID = pkt.AID;
 }
 /**
 * Map accept us to enter the map
@@ -328220,7 +328353,6 @@ function onReceiveAccountID(pkt) {
 * @param {object} pkt - PACKET.ZC.ACCEPT_ENTER
 */
 function onConnectionAccepted$2(pkt) {
-	SessionStorage_default.Entity = new Entity(SessionStorage_default.Character);
 	SessionStorage_default.Entity.onWalkEnd = onWalkEnd;
 	if ("sex" in pkt && pkt.sex < 2) SessionStorage_default.Entity.sex = pkt.sex;
 	SessionStorage_default.petId = 0;
@@ -328229,7 +328361,6 @@ function onConnectionAccepted$2(pkt) {
 	SessionStorage_default.hasGuild = false;
 	SessionStorage_default.guildRight = 0;
 	SessionStorage_default.homunId = 0;
-	SessionStorage_default.Entity.clevel = SessionStorage_default.Character.level;
 	SessionStorage_default.mapState = {
 		property: 0,
 		type: 0,
@@ -328245,14 +328376,14 @@ function onConnectionAccepted$2(pkt) {
 		isBattleField: false
 	};
 	if (PacketVerManager_default.value >= 20200520) {
-		BasicInfoController.selectUIVersionWithJob(DB.getJobClass(SessionStorage_default.Character.job));
+		BasicInfoController.selectUIVersionWithJob(DB.getJobClass(SessionStorage_default.Entity.job));
 		BasicInfoController.getUI().prepare();
 	}
-	BasicInfoController.getUI().update("blvl", SessionStorage_default.Character.level);
-	BasicInfoController.getUI().update("jlvl", SessionStorage_default.Character.joblevel);
-	BasicInfoController.getUI().update("zeny", SessionStorage_default.Character.money);
-	BasicInfoController.getUI().update("name", SessionStorage_default.Character.name);
-	BasicInfoController.getUI().update("job", SessionStorage_default.Character.job);
+	BasicInfoController.getUI().update("blvl", SessionStorage_default.Entity.clevel);
+	BasicInfoController.getUI().update("jlvl", SessionStorage_default.Entity.joblevel);
+	BasicInfoController.getUI().update("zeny", SessionStorage_default.Entity.money);
+	BasicInfoController.getUI().update("name", SessionStorage_default.Entity.display.name);
+	BasicInfoController.getUI().update("job", SessionStorage_default.Entity.job);
 	onMapChange({
 		xPos: pkt.PosDir[0],
 		yPos: pkt.PosDir[1],
@@ -328280,7 +328411,7 @@ function onMapChange(pkt) {
 				pkt.yPos,
 				0
 			],
-			GID: SessionStorage_default.Character.GID
+			GID: SessionStorage_default.AID
 		});
 		EntityManager.add(SessionStorage_default.Entity);
 		if (SessionStorage_default.Entity.effectState & StatusState_default.EffectState.FALCON) {
@@ -328897,7 +329028,10 @@ var init_MapEngine = __esmMin((() => {
 				pkt.Sex = SessionStorage_default.Sex;
 				Network.sendPacket(pkt);
 				Network.read((fp) => {
-					if (PacketVerManager_default.value < 20070521) SessionStorage_default.Character.GID = fp.readLong();
+					if (PacketVerManager_default.value < 20070521) {
+						SessionStorage_default.AID = fp.readLong();
+						SessionStorage_default.Entity.GID = SessionStorage_default.AID;
+					}
 				});
 				const hbt = new PACKET.CZ.HBT();
 				const is_sec_hbt = Configs.get("sec_HBT", null);
@@ -331602,6 +331736,13 @@ var init_CharCreate = __esmMin((() => {
 	Controller$1 = UIVersionManager.getUIController(publicName$1, versionInfo$1);
 }));
 //#endregion
+//#region src/Renderer/Entity/Player.js
+var Player;
+var init_Player = __esmMin((() => {
+	init_Entity$1();
+	Player = class extends Entity {};
+}));
+//#endregion
 //#region src/Engine/CharEngine.js
 var CharEngine_exports = /* @__PURE__ */ __exportAll({ default: () => CharEngine });
 /**
@@ -331637,6 +331778,7 @@ function onConnectionAccepted$1(pkt) {
 	});
 	SessionStorage_default.Playing = false;
 	SessionStorage_default.hasCart = false;
+	SessionStorage_default.Entity = null;
 	const Announce = UIManager.getComponent("Announce");
 	if (Announce) Announce.remove();
 	const MapName = UIManager.getComponent("MapName");
@@ -332073,7 +332215,7 @@ function onConnectRequest(entity) {
 	SoundManager.play("¹öÆ°¼Ò¸®.wav");
 	Controller$2.getUI().remove();
 	UIManager.getComponent("WinLoading").append();
-	SessionStorage_default.Character = entity;
+	SessionStorage_default.Entity = new Player(entity);
 	const pkt = new PACKET.CH.SELECT_CHAR();
 	pkt.CharNum = entity.CharNum;
 	Network.sendPacket(pkt);
@@ -332132,6 +332274,7 @@ var init_CharEngine = __esmMin((() => {
 	init_JoystickUI();
 	init_CharSelect();
 	init_CharCreate();
+	init_Player();
 	init_preload_helper();
 	_server$1 = null;
 	_creationSlot = 0;
