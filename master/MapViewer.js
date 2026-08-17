@@ -77905,7 +77905,7 @@ var init_preload_helper = __esmMin((() => {
 //#region src/UI/Common.css?raw
 var Common_default$1;
 var init_Common$1 = __esmMin((() => {
-	Common_default$1 = "/* Avoid input focus border */\r\n:focus {\r\n	outline: none;\r\n}\r\n::-moz-focus-inner {\r\n	border: 0;\r\n}\r\n\r\n* {\r\n	-moz-user-select: none;\r\n}\r\n\r\nhtml,\r\nbody {\r\n	touch-action: manipulation;\r\n	margin: 0;\r\n}\r\n\r\n/* Prevent mobile browser auto-zoom on input focus and double-tap */\r\n:host {\r\n	touch-action: manipulation;\r\n}\r\n\r\ninput,\r\ntextarea,\r\nselect {\r\n	touch-action: manipulation;\r\n}\r\n\r\ncanvas {\r\n	touch-action: none;\r\n}\r\n\r\nbody {\r\n	background-color: black;\r\n	font-size: 12px;\r\n	/* 'SCDream' first: wins only when the server actually serves the client font (loaded via\r\n	   @font-face in DBManager). When it isn't served it resolves to Arial — the official client's\r\n	   window UI font for intl/america servicetype (Ragexe draws window text with CreateFontA on the\r\n	   Gulim/Arial face table). Liberation Sans / Arimo provide Arial metrics on Linux. */\r\n	font-family: 'SCDream', Arial, 'Liberation Sans', Arimo, sans-serif;\r\n	/* Normalize any resolved font's x-height to Arial's (sxHeight 1062 / unitsPerEm 2048 = 0.5186),\r\n	   so text keeps Arial's apparent size on every OS/font. It's inherited and crosses Shadow DOM\r\n	   hosts, so it also rescales elements that use a non-Arial face; those opt out with\r\n	   `font-size-adjust: none` on the selector declaring that font (Intro, GrfViewer, JoystickUI\r\n	   header). SCDream, when a server serves it, is normalized to Arial on purpose.\r\n	   Progressive enhancement: engines that don't support the numeric form ignore it\r\n	   and render at the resolved font's native x-height (no JS fallback needed — Arial\r\n	   / Liberation Sans already carry correct metrics, only annex fonts degrade). */\r\n	font-size-adjust: 0.5186;\r\n	overflow: hidden;\r\n	-webkit-user-select: none;\r\n	user-select: none;\r\n	min-width: 100vw;\r\n	min-height: 100vh;\r\n	letter-spacing: 0;\r\n	line-height: 1.2;\r\n}\r\n\r\n.title {\r\n	font-size: 12px;\r\n}\r\n\r\nbutton,\r\nui-button {\r\n	padding: 0;\r\n}\r\n\r\nui-button {\r\n	display: inline-block;\r\n}\r\n\r\n.ui-btn {\r\n	-webkit-appearance: none;\r\n	appearance: none;\r\n	display: inline-flex;\r\n	align-items: center;\r\n	justify-content: center;\r\n\r\n	height: 20px;\r\n	min-width: 52px;\r\n	padding: 0 10px;\r\n\r\n	font-size: 12px;\r\n	line-height: 1;\r\n	color: #3f3f3f;\r\n	text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.85);\r\n\r\n	border-radius: 4px;\r\n	border: 1px solid;\r\n\r\n	/* 3D border: top right bottom left */\r\n	border-color: #cfcfcf #a9a9a9 #5f5f5f #bdbdbd;\r\n\r\n	/* glossy + subtle depth */\r\n	background: linear-gradient(to bottom, #ffffff 0%, #f2f2f2 35%, #dcdcdc 55%, #f9f9f9 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.95),\r\n		/* top highlight */ inset 0 -1px 0 rgba(0, 0, 0, 0.12),\r\n		/* bottom inner edge */ 0 1px 0 rgba(0, 0, 0, 0.12); /* outer bottom shadow */\r\n\r\n	cursor: pointer;\r\n}\r\n\r\n/* Hover: hơi xanh nhẹ giống button Reset */\r\n.ui-btn:hover {\r\n	border-color: #c9d1dd #8ea2c4 #4d5f86 #b1bfd5;\r\n	background: linear-gradient(to bottom, #f7fbff 0%, #dfe8f6 35%, #c0d0ee 55%, #f0f6ff 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.95),\r\n		inset 0 -1px 0 rgba(0, 0, 0, 0.12),\r\n		0 1px 0 rgba(0, 0, 0, 0.12);\r\n}\r\n\r\n/* Active: giống \"ấn xuống\" */\r\n.ui-btn:active {\r\n	border-color: #9fb0c9 #6f86a6 #3b4b67 #7f96b6;\r\n\r\n	background: linear-gradient(to bottom, #cdd8eb 0%, #b7c8e5 45%, #dfe9fb 100%);\r\n\r\n	box-shadow:\r\n		inset 0 2px 3px rgba(0, 0, 0, 0.18),\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.35);\r\n\r\n	transform: translateY(1px); /* cảm giác bị nhấn */\r\n}\r\n\r\n/* Disabled */\r\n.ui-btn:disabled,\r\n.ui-btn.is-disabled {\r\n	cursor: default;\r\n	color: #8f8f8f;\r\n	text-shadow: none;\r\n\r\n	border-color: #d3d3d3 #bdbdbd #9b9b9b #c9c9c9;\r\n\r\n	background: linear-gradient(to bottom, #f6f6f6 0%, #e7e7e7 55%, #fafafa 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.9),\r\n		inset 0 -1px 0 rgba(0, 0, 0, 0.08),\r\n		0 1px 0 rgba(0, 0, 0, 0.08);\r\n\r\n	transform: none;\r\n}\r\n\r\n/* Hide native cursor inside Shadow DOM when custom cursor is active */\r\n:host-context(.custom-cursor) * {\r\n	cursor: none !important;\r\n}\r\n";
+	Common_default$1 = "/* Avoid input focus border */\r\n:focus {\r\n	outline: none;\r\n}\r\n::-moz-focus-inner {\r\n	border: 0;\r\n}\r\n\r\n* {\r\n	-moz-user-select: none;\r\n}\r\n\r\nhtml,\r\nbody {\r\n	touch-action: manipulation;\r\n	margin: 0;\r\n}\r\n\r\n/* Reference for the viewport sized body below */\r\nhtml {\r\n	height: 100%;\r\n}\r\n\r\n/* Prevent mobile browser auto-zoom on input focus and double-tap */\r\n:host {\r\n	touch-action: manipulation;\r\n}\r\n\r\ninput,\r\ntextarea,\r\nselect {\r\n	touch-action: manipulation;\r\n}\r\n\r\ncanvas {\r\n	touch-action: none;\r\n}\r\n\r\nbody {\r\n	background-color: black;\r\n	font-size: 12px;\r\n	/* 'SCDream' first: wins only when the server actually serves the client font (loaded via\r\n	   @font-face in DBManager). When it isn't served it resolves to Arial — the official client's\r\n	   window UI font for intl/america servicetype (Ragexe draws window text with CreateFontA on the\r\n	   Gulim/Arial face table). Liberation Sans / Arimo provide Arial metrics on Linux. */\r\n	font-family: 'SCDream', Arial, 'Liberation Sans', Arimo, sans-serif;\r\n	/* Normalize any resolved font's x-height to Arial's (sxHeight 1062 / unitsPerEm 2048 = 0.5186),\r\n	   so text keeps Arial's apparent size on every OS/font. It's inherited and crosses Shadow DOM\r\n	   hosts, so it also rescales elements that use a non-Arial face; those opt out with\r\n	   `font-size-adjust: none` on the selector declaring that font (Intro, GrfViewer, JoystickUI\r\n	   header). SCDream, when a server serves it, is normalized to Arial on purpose.\r\n	   Progressive enhancement: engines that don't support the numeric form ignore it\r\n	   and render at the resolved font's native x-height (no JS fallback needed — Arial\r\n	   / Liberation Sans already carry correct metrics, only annex fonts degrade). */\r\n	font-size-adjust: 0.5186;\r\n	overflow: hidden;\r\n	-webkit-user-select: none;\r\n	user-select: none;\r\n	min-width: 100vw;\r\n	min-height: 100vh;\r\n	letter-spacing: 0;\r\n	line-height: 1.2;\r\n}\r\n\r\n/* Apps owning the 3D viewport (set by Renderer.init) are a fixed viewport: size the body to it and\r\n   contain it. `overflow: hidden` alone doesn't clip the body box — it propagates to the viewport —\r\n   so content positioned off screen (entity overlays, signboards, dragged windows) still extends the\r\n   document's scrollable area, and the browser scrolls, or on mobile lays the page out at its\r\n   fallback width and scales it down, to reveal it. Paint containment clips the box for real. */\r\nbody.ro-viewport {\r\n	width: 100%;\r\n	height: 100%;\r\n	min-width: 0;\r\n	min-height: 0;\r\n	contain: paint;\r\n}\r\n\r\n.title {\r\n	font-size: 12px;\r\n}\r\n\r\nbutton,\r\nui-button {\r\n	padding: 0;\r\n}\r\n\r\nui-button {\r\n	display: inline-block;\r\n}\r\n\r\n.ui-btn {\r\n	-webkit-appearance: none;\r\n	appearance: none;\r\n	display: inline-flex;\r\n	align-items: center;\r\n	justify-content: center;\r\n\r\n	height: 20px;\r\n	min-width: 52px;\r\n	padding: 0 10px;\r\n\r\n	font-size: 12px;\r\n	line-height: 1;\r\n	color: #3f3f3f;\r\n	text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.85);\r\n\r\n	border-radius: 4px;\r\n	border: 1px solid;\r\n\r\n	/* 3D border: top right bottom left */\r\n	border-color: #cfcfcf #a9a9a9 #5f5f5f #bdbdbd;\r\n\r\n	/* glossy + subtle depth */\r\n	background: linear-gradient(to bottom, #ffffff 0%, #f2f2f2 35%, #dcdcdc 55%, #f9f9f9 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.95),\r\n		/* top highlight */ inset 0 -1px 0 rgba(0, 0, 0, 0.12),\r\n		/* bottom inner edge */ 0 1px 0 rgba(0, 0, 0, 0.12); /* outer bottom shadow */\r\n\r\n	cursor: pointer;\r\n}\r\n\r\n/* Hover: hơi xanh nhẹ giống button Reset */\r\n.ui-btn:hover {\r\n	border-color: #c9d1dd #8ea2c4 #4d5f86 #b1bfd5;\r\n	background: linear-gradient(to bottom, #f7fbff 0%, #dfe8f6 35%, #c0d0ee 55%, #f0f6ff 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.95),\r\n		inset 0 -1px 0 rgba(0, 0, 0, 0.12),\r\n		0 1px 0 rgba(0, 0, 0, 0.12);\r\n}\r\n\r\n/* Active: giống \"ấn xuống\" */\r\n.ui-btn:active {\r\n	border-color: #9fb0c9 #6f86a6 #3b4b67 #7f96b6;\r\n\r\n	background: linear-gradient(to bottom, #cdd8eb 0%, #b7c8e5 45%, #dfe9fb 100%);\r\n\r\n	box-shadow:\r\n		inset 0 2px 3px rgba(0, 0, 0, 0.18),\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.35);\r\n\r\n	transform: translateY(1px); /* cảm giác bị nhấn */\r\n}\r\n\r\n/* Disabled */\r\n.ui-btn:disabled,\r\n.ui-btn.is-disabled {\r\n	cursor: default;\r\n	color: #8f8f8f;\r\n	text-shadow: none;\r\n\r\n	border-color: #d3d3d3 #bdbdbd #9b9b9b #c9c9c9;\r\n\r\n	background: linear-gradient(to bottom, #f6f6f6 0%, #e7e7e7 55%, #fafafa 100%);\r\n\r\n	box-shadow:\r\n		inset 0 1px 0 rgba(255, 255, 255, 0.9),\r\n		inset 0 -1px 0 rgba(0, 0, 0, 0.08),\r\n		0 1px 0 rgba(0, 0, 0, 0.08);\r\n\r\n	transform: none;\r\n}\r\n\r\n/* Hide native cursor inside Shadow DOM when custom cursor is active */\r\n:host-context(.custom-cursor) * {\r\n	cursor: none !important;\r\n}\r\n";
 }));
 //#endregion
 //#region src/Controls/MouseEventHandler.js
@@ -224529,6 +224529,17 @@ var init_SkillTargetSelection$1 = __esmMin((() => {
 //#endregion
 //#region src/UI/Components/SkillTargetSelection/SkillTargetSelection.js
 /**
+* Move the skill level indicator next to the pointer.
+* Uses Mouse.screen so it also follows the finger on touch devices.
+*/
+function updateSkillLevelPosition() {
+	if (_skillLevelPosition.x === Mouse.screen.x && _skillLevelPosition.y === Mouse.screen.y) return;
+	_skillLevelPosition.x = Mouse.screen.x;
+	_skillLevelPosition.y = Mouse.screen.y;
+	_skillLevel.style.left = `${Mouse.screen.x + 20}px`;
+	_skillLevel.style.top = `${Mouse.screen.y - 18}px`;
+}
+/**
 * Render text into the canvas
 *
 * @param {string} text to render
@@ -224570,12 +224581,11 @@ function renderLevel(text, canvas) {
 }
 /**
 * Intersect entity when clicking
+*
+* @param {MouseEvent} [event] undefined on touch devices
+* @return {boolean} true when the click still has to be processed by the map controls
 */
 function intersectEntities(event) {
-	if (_mousedownHandler) {
-		window.removeEventListener("mousedown", _mousedownHandler, true);
-		_mousedownHandler = null;
-	}
 	SkillTargetSelection.remove();
 	if (!Mouse.intersect) return false;
 	if (event && event.which !== 1) return true;
@@ -224626,7 +224636,7 @@ function intersectEntity(entity) {
 	if (_flag & SkillTargetSelection.TYPE.ENEMY && entity === SessionStorage_default.Entity) return;
 	SkillTargetSelection.onUseSkillToId(_skill.SKID, _skill.useLevel ? _skill.useLevel : _skill.level, entity.GID);
 }
-var SkillTargetSelection, _flag, _skill, _skillName, _description, _skillLevel, _mousedownHandler, SkillTargetSelection_default;
+var SkillTargetSelection, _flag, _skill, _skillName, _description, _skillLevel, _skillLevelPosition, SkillTargetSelection_default;
 var init_SkillTargetSelection = __esmMin((() => {
 	init_DBManager();
 	init_SkillInfo();
@@ -224671,7 +224681,10 @@ var init_SkillTargetSelection = __esmMin((() => {
 		HOMUN: 128
 	};
 	_flag = 0;
-	_mousedownHandler = null;
+	_skillLevelPosition = {
+		x: NaN,
+		y: NaN
+	};
 	/**
 	* Initialize component
 	*/
@@ -224683,10 +224696,6 @@ var init_SkillTargetSelection = __esmMin((() => {
 		_skillName.style.display = "none";
 		_description.style.display = "none";
 		_skillLevel.style.display = "none";
-		window.addEventListener("mousemove", (event) => {
-			_skillLevel.style.left = `${event.pageX + 20}px`;
-			_skillLevel.style.top = `${event.pageY - 18}px`;
-		});
 		renderText(DB.getMessage(234), _description);
 	};
 	/**
@@ -224696,10 +224705,9 @@ var init_SkillTargetSelection = __esmMin((() => {
 		_skillName.style.display = "block";
 		_description.style.display = "block";
 		_skillLevel.style.display = "block";
-		_mousedownHandler = (event) => {
-			intersectEntities(event);
-		};
-		window.addEventListener("mousedown", _mousedownHandler, true);
+		updateSkillLevelPosition();
+		Renderer.stop(updateSkillLevelPosition);
+		Renderer.render(updateSkillLevelPosition);
 	};
 	/**
 	* Possible to exit using ESCAPE
@@ -224716,10 +224724,7 @@ var init_SkillTargetSelection = __esmMin((() => {
 	* Remove from body
 	*/
 	SkillTargetSelection.onRemove = function onRemove() {
-		if (_mousedownHandler) {
-			window.removeEventListener("mousedown", _mousedownHandler, true);
-			_mousedownHandler = null;
-		}
+		Renderer.stop(updateSkillLevelPosition);
 		Cursor.blockMagnetism = false;
 		Cursor.freeze = false;
 		Cursor.setType(Cursor.ACTION.DEFAULT);
@@ -224765,8 +224770,15 @@ var init_SkillTargetSelection = __esmMin((() => {
 		if (_skill.useLevel > _skill.level) _skill.useLevel = _skill.level;
 		renderLevel(_skill.useLevel, _skillLevel);
 	};
-	SkillTargetSelection.intersect = function intersect(event) {
-		return intersectEntities(event);
+	/**
+	* Handle a click/tap on the map while selecting a target.
+	* Called from Controls/MapControl.js, the single entrypoint for mouse and touch input.
+	*
+	* @param {MouseEvent} [event] undefined on touch devices
+	* @return {boolean} true when the click was consumed by the target selection
+	*/
+	SkillTargetSelection.onMapMouseDown = function onMapMouseDown(event) {
+		return !intersectEntities(event);
 	};
 	/**
 	* Intersect with an entity ID
@@ -257608,6 +257620,8 @@ var init_Renderer = __esmMin((() => {
 		*/
 		static init(param) {
 			if (!this.gl) {
+				document.body.classList.add("ro-viewport");
+				this.canvas.className = "ro-scene";
 				this.canvas.style.position = "absolute";
 				this.canvas.style.top = "0px";
 				this.canvas.style.left = "0px";
@@ -299823,6 +299837,49 @@ var init_EntityAction = __esmMin((() => {
 	init_DBManager();
 }));
 //#endregion
+//#region src/Renderer/Entity/EntityOverlay.js
+var EntityOverlay;
+var init_EntityOverlay = __esmMin((() => {
+	EntityOverlay = class {
+		/**
+		* @var {HTMLElement} the layer, created on first use
+		*/
+		static layer = null;
+		/**
+		* Get the layer, appending it to the document if needed
+		*
+		* @return {HTMLElement} layer
+		*/
+		static getLayer() {
+			if (!this.layer) {
+				this.layer = document.createElement("div");
+				this.layer.className = "entity-overlay";
+				Object.assign(this.layer.style, {
+					position: "fixed",
+					top: "0px",
+					left: "0px",
+					width: "100%",
+					height: "100%",
+					overflow: "hidden",
+					pointerEvents: "none",
+					zIndex: "2"
+				});
+			}
+			if (!this.layer.parentNode) document.body.appendChild(this.layer);
+			return this.layer;
+		}
+		/**
+		* Add an overlay to the layer
+		*
+		* @param {HTMLElement} element
+		*/
+		static append(element) {
+			const layer = this.getLayer();
+			if (element.parentNode !== layer) layer.appendChild(element);
+		}
+	};
+}));
+//#endregion
 //#region src/Renderer/Entity/EntityCast.js
 /**
 * Export
@@ -299833,6 +299890,7 @@ function Init$9() {
 var vec4$5, _pos$5, _size$5, Cast;
 var init_EntityCast = __esmMin((() => {
 	init_gl_matrix();
+	init_EntityOverlay();
 	vec4$5 = gl_matrix_default.vec4;
 	_pos$5 = /* @__PURE__ */ new Float32Array(4);
 	_size$5 = /* @__PURE__ */ new Float32Array(2);
@@ -299845,6 +299903,7 @@ var init_EntityCast = __esmMin((() => {
 			this.color = "#00FF00";
 			this.onComplete = null;
 			this.canvas = document.createElement("canvas");
+			this.canvas.className = "entity-cast";
 			this.ctx = this.canvas.getContext("2d");
 			this.canvas.style.position = "absolute";
 			this.canvas.style.zIndex = 1;
@@ -299868,7 +299927,7 @@ var init_EntityCast = __esmMin((() => {
 		remove() {
 			this.percent = -1;
 			this.display = false;
-			if (this.canvas.parentNode) document.body.removeChild(this.canvas);
+			this.canvas.remove();
 		}
 		/**
 		* Clean up memory
@@ -299925,7 +299984,7 @@ var init_EntityCast = __esmMin((() => {
 			_pos$5[1] = _size$5[1] - Math.round(_size$5[1] * (_pos$5[1] * z));
 			canvas.style.top = (_pos$5[1] | 0) + "px";
 			canvas.style.left = (_pos$5[0] - canvas.width / 2 | 0) + "px";
-			if (!canvas.parentNode) document.body.appendChild(canvas);
+			EntityOverlay.append(canvas);
 		}
 	};
 }));
@@ -299942,6 +300001,7 @@ var vec4$4, _pos$4, _size$4, Life;
 var init_EntityLife = __esmMin((() => {
 	init_gl_matrix();
 	init_DBManager();
+	init_EntityOverlay();
 	vec4$4 = gl_matrix_default.vec4;
 	_pos$4 = /* @__PURE__ */ new Float32Array(4);
 	_size$4 = /* @__PURE__ */ new Float32Array(2);
@@ -299955,6 +300015,7 @@ var init_EntityLife = __esmMin((() => {
 			this.ap_max = -1;
 			this.display = false;
 			this.canvas = document.createElement("canvas");
+			this.canvas.className = "entity-life";
 			this.ctx = this.canvas.getContext("2d");
 			this.canvas.style.position = "absolute";
 			this.canvas.style.zIndex = 1;
@@ -299967,7 +300028,7 @@ var init_EntityLife = __esmMin((() => {
 		*/
 		remove() {
 			this.display = false;
-			if (this.canvas.parentNode) document.body.removeChild(this.canvas);
+			this.canvas.remove();
 		}
 		/**
 		* Clean Up Life
@@ -300048,7 +300109,7 @@ var init_EntityLife = __esmMin((() => {
 			if (window.VerticalFlip && window.VerticalFlip.isActive()) _pos$4[1] = window.innerHeight - _pos$4[1];
 			canvas.style.top = (_pos$4[1] | 0) + "px";
 			canvas.style.left = (_pos$4[0] - canvas.width / 2 | 0) + "px";
-			if (!canvas.parentNode) document.body.appendChild(canvas);
+			EntityOverlay.append(canvas);
 		}
 	};
 }));
@@ -300074,6 +300135,7 @@ var vec4$3, _pos$3, _size$3, dpr, procCanvas, procCtx, _isUglyShadow, Display;
 var init_EntityDisplay = __esmMin((() => {
 	init_gl_matrix();
 	init_Map();
+	init_EntityOverlay();
 	vec4$3 = gl_matrix_default.vec4;
 	_pos$3 = /* @__PURE__ */ new Float32Array(4);
 	_size$3 = /* @__PURE__ */ new Float32Array(2);
@@ -300136,6 +300198,7 @@ var init_EntityDisplay = __esmMin((() => {
 			this.gifEmblem = null;
 			this.display = false;
 			this.canvas = document.createElement("canvas");
+			this.canvas.className = "entity-display";
 			this.ctx = this.canvas.getContext("2d");
 			this.canvas.style.position = "absolute";
 			this.canvas.style.zIndex = 1;
@@ -300159,7 +300222,7 @@ var init_EntityDisplay = __esmMin((() => {
 		* Remove GUI from html
 		*/
 		remove() {
-			if (this.canvas.parentNode) document.body.removeChild(this.canvas);
+			this.canvas.remove();
 			this.display = false;
 		}
 		/**
@@ -300285,7 +300348,7 @@ var init_EntityDisplay = __esmMin((() => {
 			canvas.style.left = (_pos$3[0] - canvas.width / dpr / 2 | 0) + "px";
 			canvas.style.width = canvas.width / dpr + "px";
 			canvas.style.height = canvas.height / dpr + "px";
-			if (!canvas.parentNode) document.body.appendChild(canvas);
+			EntityOverlay.append(canvas);
 		}
 	};
 }));
@@ -300314,6 +300377,7 @@ var vec4$2, _pos$2, _size$2, Dialog;
 var init_EntityDialog = __esmMin((() => {
 	init_gl_matrix();
 	init_Events();
+	init_EntityOverlay();
 	vec4$2 = gl_matrix_default.vec4;
 	_pos$2 = /* @__PURE__ */ new Float32Array(4);
 	_size$2 = /* @__PURE__ */ new Float32Array(2);
@@ -300324,6 +300388,7 @@ var init_EntityDialog = __esmMin((() => {
 			this.timeout = null;
 			this.display = false;
 			this.canvas = document.createElement("canvas");
+			this.canvas.className = "entity-dialog";
 			this.ctx = this.canvas.getContext("2d");
 			this.canvas.style.position = "absolute";
 			this.canvas.style.zIndex = 1;
@@ -300385,7 +300450,7 @@ var init_EntityDialog = __esmMin((() => {
 				Events.clearTimeout(this.timeout);
 				this.timeout = null;
 			}
-			if (this.canvas.parentNode) document.body.removeChild(this.canvas);
+			this.canvas.remove();
 			this.display = false;
 			this.text = "";
 		}
@@ -300412,7 +300477,7 @@ var init_EntityDialog = __esmMin((() => {
 			_pos$2[1] = _size$2[1] - Math.round(_size$2[1] * (_pos$2[1] * z));
 			canvas.style.top = (_pos$2[1] - canvas.height - 2 | 0) + "px";
 			canvas.style.left = (_pos$2[0] - canvas.width / 2 | 0) + "px";
-			if (!canvas.parentNode) document.body.appendChild(canvas);
+			EntityOverlay.append(canvas);
 		}
 	};
 }));
@@ -303800,6 +303865,7 @@ function Init() {
 var vec4, _pos, _size, Emblem;
 var init_EntityEmblem = __esmMin((() => {
 	init_gl_matrix();
+	init_EntityOverlay();
 	vec4 = gl_matrix_default.vec4;
 	_pos = /* @__PURE__ */ new Float32Array(4);
 	_size = /* @__PURE__ */ new Float32Array(2);
@@ -303808,6 +303874,7 @@ var init_EntityEmblem = __esmMin((() => {
 			this.emblem = null;
 			this.display = false;
 			this.canvas = document.createElement("canvas");
+			this.canvas.className = "entity-emblem";
 			this.ctx = this.canvas.getContext("2d");
 			this.canvas.style.position = "absolute";
 			this.canvas.style.zIndex = 1;
@@ -303818,7 +303885,7 @@ var init_EntityEmblem = __esmMin((() => {
 		*/
 		remove() {
 			this.display = false;
-			if (this.canvas.parentNode) document.body.removeChild(this.canvas);
+			this.canvas.remove();
 		}
 		/**
 		* Clean Up Emblem
@@ -303855,7 +303922,7 @@ var init_EntityEmblem = __esmMin((() => {
 			_pos[1] = _size[1] - Math.round(_size[1] * (_pos[1] * z));
 			canvas.style.top = (_pos[1] | 0) + "px";
 			canvas.style.left = (_pos[0] - canvas.width / 2 | 0) + "px";
-			if (!canvas.parentNode) document.body.appendChild(canvas);
+			EntityOverlay.append(canvas);
 		}
 	};
 }));
@@ -309181,11 +309248,8 @@ var init_ScreenShot = __esmMin((() => {
 */
 function onMouseDown(event) {
 	const action = event && event.which || 1;
+	if (Mouse.state === Mouse.MOUSE_STATE.USESKILL && SkillTargetSelection_default.onMapMouseDown(event)) return;
 	if (!Mouse.intersect) return;
-	if (Mouse.state === Mouse.MOUSE_STATE.USESKILL) {
-		SkillTargetSelection_default.intersect(event);
-		return;
-	}
 	const entityFocus = EntityManager.getFocusEntity();
 	const entityOver = EntityManager.getOverEntity();
 	switch (action) {
