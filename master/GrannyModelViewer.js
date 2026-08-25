@@ -230736,6 +230736,136 @@ var init_CheckAttendance = __esmMin((() => {
 	CheckAttendance_default = UIManager.addComponent(CheckAttendance);
 }));
 //#endregion
+//#region src/UI/Components/SkillList/SkillRequirements.js
+function getOwnedSkill(ownedSkills, skillId) {
+	return ownedSkills?.get?.(skillId) ?? ownedSkills?.[skillId] ?? null;
+}
+function getOwnedLevel(ownedSkills, skillId) {
+	return getOwnedSkill(ownedSkills, skillId)?.level ?? 0;
+}
+function getJobLineage(jobId, skillTreeView) {
+	const lineage = [];
+	const visited = /* @__PURE__ */ new Set();
+	let currentJobId = jobId;
+	while (currentJobId != null && !visited.has(currentJobId)) {
+		visited.add(currentJobId);
+		lineage.push(currentJobId);
+		const tree = skillTreeView[currentJobId];
+		if (!tree || tree.beforeJob == null) break;
+		currentJobId = tree.beforeJob;
+	}
+	return lineage;
+}
+/**
+* Resolve the requirements that apply to a skill for the active character job.
+* Job-specific entries override the generic list, including explicit empty
+* overrides. Aliased jobs in SkillTreeView share the same tree object, so an
+* alias can inherit the canonical job's override.
+*/
+function resolveSkillRequirements(skill, jobId, skillTreeView) {
+	if (!skill) return [];
+	const jobRequirements = skill.NeedSkillList;
+	if (jobRequirements) {
+		const requirementJobs = Object.keys(jobRequirements);
+		for (const lineageJobId of getJobLineage(jobId, skillTreeView)) {
+			if (Object.hasOwn(jobRequirements, lineageJobId)) return jobRequirements[lineageJobId];
+			const lineageTree = skillTreeView[lineageJobId];
+			if (!lineageTree) continue;
+			const canonicalJobId = requirementJobs.find((requirementJobId) => {
+				return skillTreeView[requirementJobId] === lineageTree;
+			});
+			if (canonicalJobId !== void 0) return jobRequirements[canonicalJobId];
+		}
+	}
+	return skill._NeedSkillList ?? [];
+}
+function clonePlan(plan) {
+	return new Map(Array.from(plan, ([skillId, choice]) => [skillId, { ...choice }]));
+}
+function calculatePlanCost(plan, ownedSkills) {
+	let cost = 0;
+	for (const [skillId, choice] of plan) if (!choice.isQuest) cost += Math.max(0, choice.count - getOwnedLevel(ownedSkills, skillId));
+	return cost;
+}
+function getPlannedLevel(plan, ownedSkills, skillId) {
+	return Math.max(plan.get(skillId)?.count ?? 0, getOwnedLevel(ownedSkills, skillId));
+}
+/**
+* Build a complete candidate plan for one more level of skillId. The input
+* plan is never mutated. A null result means the complete prerequisite chain
+* is invalid or cannot be afforded.
+*/
+function stageSkillPlan({ plan, skillId, ownedSkills, skillInfo, skillTreeView, jobId, availablePoints }) {
+	const candidate = clonePlan(plan);
+	const visiting = /* @__PURE__ */ new Set();
+	const stage = (currentSkillId, requiredLevel = null) => {
+		const info = skillInfo[currentSkillId];
+		if (!info || visiting.has(currentSkillId)) return false;
+		const ownedLevel = getOwnedLevel(ownedSkills, currentSkillId);
+		if (info.Type === "Quest" && ownedLevel <= 0) return requiredLevel == null;
+		const currentLevel = Math.max(candidate.get(currentSkillId)?.count ?? 0, ownedLevel);
+		const targetLevel = requiredLevel == null ? Math.min(currentLevel + 1, info.MaxLv) : Math.max(currentLevel, requiredLevel);
+		if (targetLevel > info.MaxLv) return false;
+		candidate.set(currentSkillId, {
+			count: targetLevel,
+			isQuest: false
+		});
+		visiting.add(currentSkillId);
+		for (const [requiredSkillId, level] of resolveSkillRequirements(info, jobId, skillTreeView)) if (!stage(requiredSkillId, level)) {
+			visiting.delete(currentSkillId);
+			return false;
+		}
+		visiting.delete(currentSkillId);
+		return true;
+	};
+	if (!stage(skillId)) return null;
+	const cost = calculatePlanCost(candidate, ownedSkills);
+	if (cost > availablePoints) return null;
+	return {
+		plan: candidate,
+		cost
+	};
+}
+function validateSkillPlan({ plan, ownedSkills, skillInfo, skillTreeView, jobId, availablePoints }) {
+	if (calculatePlanCost(plan, ownedSkills) > availablePoints) return false;
+	for (const [skillId, choice] of plan) {
+		const info = skillInfo[skillId];
+		const ownedLevel = getOwnedLevel(ownedSkills, skillId);
+		if (!info || choice.count < ownedLevel || choice.count > info.MaxLv) return false;
+		for (const [requiredSkillId, requiredLevel] of resolveSkillRequirements(info, jobId, skillTreeView)) if (getPlannedLevel(plan, ownedSkills, requiredSkillId) < requiredLevel) return false;
+	}
+	return true;
+}
+/**
+* Return one skill id per upgrade packet, ordered so every prerequisite is
+* upgraded before its dependants. A null result means the staged plan is no
+* longer valid against the authoritative skill state.
+*/
+function createSkillUpgradeOrder(options) {
+	if (!validateSkillPlan(options)) return null;
+	const { plan, ownedSkills, skillInfo, skillTreeView, jobId } = options;
+	const order = [];
+	const visited = /* @__PURE__ */ new Set();
+	const visiting = /* @__PURE__ */ new Set();
+	const visit = (skillId) => {
+		if (visited.has(skillId)) return true;
+		if (visiting.has(skillId)) return false;
+		const info = skillInfo[skillId];
+		if (!info) return false;
+		visiting.add(skillId);
+		for (const [requiredSkillId] of resolveSkillRequirements(info, jobId, skillTreeView)) if (plan.has(requiredSkillId) && !visit(requiredSkillId)) return false;
+		visiting.delete(skillId);
+		visited.add(skillId);
+		const count = plan.get(skillId)?.count ?? getOwnedLevel(ownedSkills, skillId);
+		const upgrades = Math.max(0, count - getOwnedLevel(ownedSkills, skillId));
+		for (let i = 0; i < upgrades; i++) order.push(skillId);
+		return true;
+	};
+	for (const skillId of plan.keys()) if (!visit(skillId)) return null;
+	return order;
+}
+var init_SkillRequirements = __esmMin((() => {}));
+//#endregion
 //#region src/UI/Components/SkillList/SkillListCommon.js
 function _escapeHTML$2(text) {
 	const div = document.createElement("div");
@@ -230745,7 +230875,7 @@ function _escapeHTML$2(text) {
 function _isNumeric(val) {
 	return !isNaN(parseFloat(val)) && isFinite(val);
 }
-function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillListKey = "_NeedSkillList", showDescOnMiniHover = false, touchDrag = false, incrementalRemember = false, guardMissingJob = false, readdSkillOnUpdate = false, listOnly = false, dragFrom = null, titlebarText = null, containerSelector = null, preferenceDefaults = {
+function createSkillList({ name, htmlText, cssText, hasTabs = false, showDescOnMiniHover = false, touchDrag = false, guardMissingJob = false, readdSkillOnUpdate = false, listOnly = false, dragFrom = null, titlebarText = null, containerSelector = null, preferenceDefaults = {
 	x: 100,
 	y: 200,
 	width: 8,
@@ -230767,7 +230897,8 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 	let _lArrow, _rArrow;
 	let skillPosition = [];
 	const skillDependencyTree = [];
-	let rememberChoice = [];
+	let skillJobId = null;
+	let rememberChoice = /* @__PURE__ */ new Map();
 	const hasSkills = [];
 	let _justDragged = false;
 	const _touchDrag = {
@@ -230790,6 +230921,7 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 			onResize(e, this);
 		});
 		root.querySelector(".titlebar .close")?.addEventListener("click", () => {
+			onResetChoice(this);
 			this.ui.hide();
 		});
 		root.querySelector(".titlebar .mini")?.addEventListener("click", () => {
@@ -230963,6 +231095,7 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 	};
 	Component.toggle = function toggle() {
 		if (this.ui.is(":visible")) {
+			onResetChoice(this);
 			this.ui.hide();
 			if (_btnLevelUp && _btnLevelUp.parentNode) _btnLevelUp.remove();
 		} else {
@@ -230974,7 +231107,6 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 		switch (key.cmd) {
 			case "TOGGLE": this.toggle();
 		}
-		onResetChoice(this);
 	};
 	Component.setSkills = function setSkills(skills) {
 		const root = this.getRoot();
@@ -230988,10 +231120,13 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 		}
 		root.querySelectorAll(".upgradable").forEach((el) => el.classList.remove("upgradable"));
 		const entity = SessionStorage_default.Entity;
-		skillPosition = getSkillPosition(entity ? entity._job || entity.job : 0);
+		skillJobId = entity ? entity._job || entity.job : 0;
+		skillPosition = getSkillPosition(skillJobId);
+		skillDependencyTree.length = 0;
 		createSkillDependencyTree();
 		for (let i = 0, count = _list.length; i < count; ++i) this.onUpdateSkill(_list[i].SKID, 0);
 		_list.length = 0;
+		hasSkills.length = 0;
 		if (hasTabs) root.querySelectorAll(".content table").forEach((t) => {
 			t.innerHTML = "";
 		});
@@ -231033,7 +231168,7 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 							list,
 							MaxLv: sk.MaxLv
 						};
-						if (sk?.[needSkillListKey] !== void 0) sk[needSkillListKey].forEach((item) => {
+						resolveSkillRequirements(sk, skillJobId, SkillTreeView).forEach((item) => {
 							skillDependencyTree[skid]["dependency"][item[0]] = item[1];
 						});
 					} else console.error("Something wrong with this skill: %d", skid);
@@ -231044,20 +231179,18 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 						list: void 0,
 						MaxLv: sk.MaxLv
 					};
-					if (sk?.[needSkillListKey] !== void 0) sk[needSkillListKey].forEach((item) => {
+					resolveSkillRequirements(sk, skillJobId, SkillTreeView).forEach((item) => {
 						skillDependencyTree[skid]["dependency"][item[0]] = item[1];
 					});
 				}
 			});
 		});
 	}
-	function specifyRequirements(skillId, count, root) {
-		const skdt = skillDependencyTree[skillId];
-		if (skdt?.dependency || count != null) skillPosition.forEach((items, list) => {
+	function highlightNecessarySkill(skillId, count, root) {
+		skillPosition.forEach((items, list) => {
 			if (items[skillId] !== void 0) {
 				const skillbox = root.querySelector(`#positionSkills${list} .s${items[skillId]}`);
 				if (skillbox) {
-					skillbox.querySelector(".disabled");
 					skillbox.classList.add("needleSkill");
 					if (count !== null && count !== void 0) {
 						const counterEl = document.createElement("div");
@@ -231068,76 +231201,51 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 				}
 			}
 		});
-		if (skdt?.dependency) skdt.dependency.forEach((item, key) => {
-			specifyRequirements(key, item, root);
+	}
+	function collectNecessarySkills(skillId, requirements, visiting = /* @__PURE__ */ new Set()) {
+		if (visiting.has(skillId)) return;
+		visiting.add(skillId);
+		skillDependencyTree[skillId]?.dependency.forEach((level, requiredSkillId) => {
+			requirements.set(requiredSkillId, Math.max(requirements.get(requiredSkillId) ?? 0, level));
+			collectNecessarySkills(requiredSkillId, requirements, visiting);
 		});
+		visiting.delete(skillId);
 	}
 	function onRememberChoice(target, root) {
 		if (_justDragged) return;
 		let main = target.parentElement;
 		if (!main.classList.contains("skill")) main = main.parentElement;
-		rememberChoice = setRememberChoice(parseInt(main.getAttribute("data-index"), 10));
-		rememberChoice.forEach((item, skId) => {
-			if (!rememberChoice[skId]["isQuest"] && totalCounter < _points) {
-				const sk = skillDependencyTree[skId];
-				if (!sk) return;
-				const skillbox = root.querySelector(`#positionSkills${sk.list} .s${sk.position}`);
-				if (skillbox) {
-					const currentEl = skillbox.querySelector(".current");
-					if (incrementalRemember) {
-						if (currentEl && currentEl.textContent !== String(sk.MaxLv) && currentEl.textContent !== String(item.count)) {
-							const level = currentEl.textContent;
-							let diff = 0;
-							if (item.count > level) diff = item.count - level;
-							totalCounter += diff;
-							skillbox.querySelectorAll(".skill").forEach((el) => el.classList.remove("disabled"));
-							const levelEl = skillbox.querySelector(".level");
-							if (levelEl) levelEl.style.display = "";
-							if (currentEl) currentEl.textContent = rememberChoice[skId]["count"];
-							const maxEl = skillbox.querySelector(".max");
-							if (maxEl) maxEl.textContent = rememberChoice[skId]["count"];
-						}
-					} else if (currentEl && currentEl.textContent !== String(sk.MaxLv)) {
-						totalCounter += rememberChoice[skId]["count"];
-						const disabledEl = skillbox.querySelector(".disabled");
-						if (disabledEl) disabledEl.classList.remove("disabled");
-						const levelEl = skillbox.querySelector(".level");
-						if (levelEl) levelEl.style.display = "";
-						if (currentEl) currentEl.textContent = rememberChoice[skId]["count"];
-						const maxEl = skillbox.querySelector(".max");
-						if (maxEl) maxEl.textContent = rememberChoice[skId]["count"];
-					}
-				}
-			}
+		const skillId = parseInt(main.getAttribute("data-index"), 10);
+		const result = stageSkillPlan({
+			plan: rememberChoice,
+			skillId,
+			ownedSkills: hasSkills,
+			skillInfo: SkillInfo,
+			skillTreeView: SkillTreeView,
+			jobId: skillJobId,
+			availablePoints: _points
+		});
+		if (!result) return;
+		rememberChoice = result.plan;
+		totalCounter = result.cost;
+		renderRememberChoice(root);
+	}
+	function renderRememberChoice(root) {
+		rememberChoice.forEach((choice, skillId) => {
+			if (choice.isQuest) return;
+			const skill = hasSkills[skillId];
+			root.querySelectorAll(`.skill.id${skillId}`).forEach((element) => {
+				element.classList.remove("active", "passive", "disabled");
+				element.classList.add(skill?.type ? "active" : "passive");
+				const levelEl = element.querySelector(".level");
+				if (levelEl) levelEl.style.display = "";
+				element.querySelectorAll(".current, .max").forEach((level) => {
+					level.textContent = choice.count;
+				});
+			});
 		});
 		const skpointsEl = root.querySelector(".skpoints_count");
 		if (skpointsEl) skpointsEl.textContent = `${_points - totalCounter}/${_points}`;
-	}
-	function setRememberChoice(skillId, count = null, isQuest = false) {
-		const sk = SkillInfo[skillId];
-		if (!isQuest && sk["Type"] === "Quest") {
-			const skill = getSkillById(skillId);
-			isQuest = !skill?.level || skill?.level <= 0;
-		}
-		rememberChoice[skillId] = rememberChoice[skillId] ?? {
-			count: hasSkills?.[skillId]?.level ?? 0,
-			list: null,
-			isQuest
-		};
-		if (!isQuest) {
-			if (count) {
-				if (count > rememberChoice[skillId]["count"]) rememberChoice[skillId]["count"] = count;
-			} else if (sk["MaxLv"] > rememberChoice[skillId]["count"]) rememberChoice[skillId]["count"]++;
-		}
-		if (sk[needSkillListKey] !== void 0) {
-			sk[needSkillListKey].forEach((item) => {
-				rememberChoice[skillId][item[0]] = setRememberChoice(item[0], item[1], isQuest)[item[0]];
-			});
-			Object.entries(rememberChoice[skillId]).forEach(([key, value]) => {
-				if (_isNumeric(key) && value.isQuest) rememberChoice[skillId]["isQuest"] = value.isQuest;
-			});
-		}
-		return rememberChoice;
 	}
 	function getSkillPosition(JobId) {
 		const positions = [];
@@ -231509,47 +231617,53 @@ function createSkillList({ name, htmlText, cssText, hasTabs = false, needSkillLi
 		resize(comp, _preferences.width, _preferences.height);
 	}
 	function onApplyChoice(comp) {
-		const applyArr = [];
-		rememberChoice.forEach((item, skillId) => {
-			applyArr[skillId] = 0;
-			const level = hasSkills?.[skillId]?.level ?? 0;
-			if (item.count > level) applyArr[skillId] = item.count - level;
-			else applyArr[skillId] = item.count;
+		const order = createSkillUpgradeOrder({
+			plan: rememberChoice,
+			ownedSkills: hasSkills,
+			skillInfo: SkillInfo,
+			skillTreeView: SkillTreeView,
+			jobId: skillJobId,
+			availablePoints: _points
 		});
-		applyArr.forEach((c, k) => {
-			for (let i = 0; i < c; i++) Component.onIncreaseSkill(parseInt(k, 10));
-		});
-		totalCounter = 0;
-		const skpointsEl = comp.getRoot().querySelector(".skpoints_count");
-		if (skpointsEl) skpointsEl.textContent = `${_points - totalCounter}`;
-		rememberChoice = [];
+		if (!order) {
+			onResetChoice(comp);
+			return;
+		}
+		order.forEach((skillId) => Component.onIncreaseSkill(skillId));
+		onResetChoice(comp);
 	}
 	function onResetChoice(comp) {
 		const root = comp.getRoot();
-		rememberChoice.forEach((_count, skillId) => {
-			if (!skillDependencyTree[skillId]) return;
-			const skillbox = root.querySelector(`.skillCol.s${skillDependencyTree[skillId].position}`);
-			if (skillbox) {
-				if (!hasSkills?.[skillId]?.level) skillbox.querySelectorAll(".skill").forEach((el) => el.classList.add("disabled"));
-				const selectable = skillbox.querySelector(".selectable");
+		rememberChoice.forEach((_choice, skillId) => {
+			const skill = hasSkills[skillId];
+			const level = skill?.level ?? 0;
+			root.querySelectorAll(`.skill.id${skillId}`).forEach((element) => {
+				element.classList.remove("active", "passive", "disabled");
+				element.classList.add(level ? skill?.type ? "active" : "passive" : "disabled");
+				const selectable = element.querySelector(".selectable");
 				if (selectable) selectable.style.display = "";
-				skillbox.querySelectorAll(".current").forEach((el) => {
-					el.textContent = hasSkills?.[skillId]?.level ?? 0;
+				element.querySelectorAll(".current, .max").forEach((value) => {
+					value.textContent = level;
 				});
-				skillbox.querySelectorAll(".max").forEach((el) => {
-					el.textContent = hasSkills?.[skillId]?.level ?? 0;
-				});
-			}
+				const levelEl = element.querySelector(".level");
+				if (levelEl) levelEl.style.display = !level && element.parentElement?.classList.contains("skillCol") ? "none" : "";
+			});
 		});
 		totalCounter = 0;
 		const skpointsEl = root.querySelector(".skpoints_count");
 		if (skpointsEl) skpointsEl.textContent = _points;
-		rememberChoice = [];
+		rememberChoice = /* @__PURE__ */ new Map();
 	}
 	function onNecessarySkills(target, root) {
 		let main = target.parentElement;
 		if (!main.classList.contains("skill")) main = main.parentElement;
-		specifyRequirements(parseInt(main.getAttribute("data-index"), 10), null, root);
+		const skillId = parseInt(main.getAttribute("data-index"), 10);
+		const requirements = /* @__PURE__ */ new Map();
+		collectNecessarySkills(skillId, requirements);
+		highlightNecessarySkill(skillId, null, root);
+		requirements.forEach((level, requiredSkillId) => {
+			highlightNecessarySkill(requiredSkillId, level, root);
+		});
 	}
 	function _resolveSkillID(el) {
 		let main = el.parentElement;
@@ -231669,6 +231783,7 @@ var init_SkillListCommon = __esmMin((() => {
 	init_SkillInfo();
 	init_SkillTargetSelection();
 	init_SkillTreeView();
+	init_SkillRequirements();
 	init_UIManager();
 }));
 //#endregion
@@ -231729,10 +231844,8 @@ var init_SkillListV2 = __esmMin((() => {
 		htmlText: SkillListV2_default$2,
 		cssText: SkillListV2_default$1,
 		hasTabs: true,
-		needSkillListKey: "_NeedSkillList",
 		showDescOnMiniHover: false,
 		touchDrag: true,
-		incrementalRemember: true,
 		guardMissingJob: true,
 		readdSkillOnUpdate: true,
 		dragFrom: "SkillList"
@@ -238510,6 +238623,29 @@ var init_WriteRodex = __esmMin((() => {
 	WriteRodex_default = UIManager.addComponent(WriteRodex);
 }));
 //#endregion
+//#region src/UI/Components/Inventory/InventoryItemTransfer.js
+/**
+* Transfer an inventory item stack to the active receivers, highest priority first.
+* A receiver that declines the item lets the next one (or the caller's fallback) handle it.
+*
+* @param {object} item Inventory item
+* @param {object} components Registered UI components
+* @returns {boolean} Whether a receiver handled the request
+*/
+function transferInventoryItemStack(item, components) {
+	if (!item || !components) return false;
+	return Object.values(components).filter((component) => {
+		return component?.__active && component._host?.isConnected && component._host.style.display !== "none" && typeof component.receiveInventoryItemStack === "function";
+	}).sort((a, b) => (b.inventoryTransferPriority || 0) - (a.inventoryTransferPriority || 0)).some((receiver) => receiver.receiveInventoryItemStack(item) === true);
+}
+var InventoryItemTransferPriority;
+var init_InventoryItemTransfer = __esmMin((() => {
+	InventoryItemTransferPriority = Object.freeze({
+		TRADE: 300,
+		NPC_STORE: 400
+	});
+}));
+//#endregion
 //#region src/UI/Components/Inventory/InventoryCommon.js
 function _sanitizeHtml$7(str) {
 	const whitelist = [
@@ -239331,6 +239467,7 @@ function createInventory(config) {
 	* Alt Right Click Request Transfer
 	*/
 	function transferItemToOtherUI(item) {
+		if (transferInventoryItemStack(item, UIManager.components)) return true;
 		const storageUI = StorageController.getUI();
 		const isStorageOpen = storageUI._host ? storageUI._host.style.display !== "none" : false;
 		const isCartOpen = CartItems_default._host ? CartItems_default._host.style.display !== "none" : false;
@@ -239636,6 +239773,7 @@ var init_InventoryCommon = __esmMin((() => {
 	init_Enchant();
 	init_Mail$1();
 	init_WriteRodex();
+	init_InventoryItemTransfer();
 }));
 //#endregion
 //#region src/UI/Components/Inventory/InventoryV0/InventoryV0.js
@@ -299080,6 +299218,7 @@ var init_Trade$1 = __esmMin((() => {
 	init_ItemInfo();
 	init_Inventory();
 	init_ChatBox();
+	init_InventoryItemTransfer();
 	init_Trade$3();
 	init_Trade$2();
 	Trade = new GUIComponent("Trade", Trade_default$1);
@@ -299230,6 +299369,13 @@ var init_Trade$1 = __esmMin((() => {
 			const icon = root.querySelector(`.item[data-index="${idx}"] .icon`);
 			if (icon && icon.closest(".box.recv")) icon.style.backgroundImage = `url(${data})`;
 		});
+	};
+	Trade.inventoryTransferPriority = InventoryItemTransferPriority.TRADE;
+	Trade.receiveInventoryItemStack = function receiveInventoryItemStack(item) {
+		const sendBox = Trade.getRoot().querySelector(".box.send");
+		if (!item || !sendBox || sendBox.classList.contains("disabled")) return false;
+		onRequestAddItem(item.index, item.count || 1);
+		return true;
 	};
 	/**
 	* Conclude a part of the trade
@@ -318599,10 +318745,17 @@ function onEntityVanish(pkt) {
 				if (entity.objecttype !== Entity.TYPE_PC) entity.aura.remove(EffectManager);
 				if (pkt.type === Entity.VT.DEAD) EntityManager.removeLife(pkt.GID);
 		}
-		entity.remove(pkt.type);
+		if (pkt.GID === SessionStorage_default.Entity.GID && pkt.type === 1) Escape_default.showDeathMenu(haveSiegfriedItem());
+		const deathDelay = pkt.type === Entity.VT.DEAD && entity.objecttype !== Entity.TYPE_PC && entity._deathSyncTick > Renderer.tick ? entity._deathSyncTick - Renderer.tick + C_DEATH_SYNC_OFFSET : 0;
 		EntityManager.removeGID(pkt.GID);
+		const playDeath = () => {
+			entity.remove(pkt.type);
+		};
+		if (deathDelay > 0) {
+			entity._deathSyncTick = 0;
+			Events.setTimeout(playDeath, deathDelay);
+		} else playDeath();
 	}
-	if (pkt.GID === SessionStorage_default.Entity.GID && pkt.type === 1) Escape_default.showDeathMenu(haveSiegfriedItem());
 }
 /**
 * An entity start walking
@@ -320064,6 +320217,8 @@ function onEntityMvpRewardItemMessage(pkt) {
 function onEntityWillBeHitSub(pkt, dstEntity) {
 	if ((pkt.damage > 0 || pkt.leftDamage > 0) && pkt.action !== 4 && pkt.action !== 9 && pkt.action !== 11) {
 		const count = pkt.count || 1;
+		const lastHitDelay = pkt.attackMT + C_MULTIHIT_DELAY * (pkt.leftDamage ? 1.75 : 1) * (count - 1);
+		dstEntity._deathSyncTick = Math.max(dstEntity._deathSyncTick || 0, Renderer.tick + lastHitDelay);
 		function impendingAttack() {
 			if (dstEntity.action !== dstEntity.ACTION.DIE) dstEntity.setAction({
 				action: dstEntity.ACTION.HURT,
@@ -320267,7 +320422,7 @@ function EntityEngine() {
 	Network.hookPacket(PACKET.ZC.ACK_CHANGE_TITLE, onTitleChangeAck);
 	Network.hookPacket(PACKET.ZC.HAT_EFFECT, onHatEffects);
 }
-var SkillNameDisplayExclude, SkillBlueCombo, C_MULTIHIT_DELAY, AVG_ATTACK_SPEED, MAX_ATTACKMT, clanEmblems;
+var SkillNameDisplayExclude, SkillBlueCombo, C_MULTIHIT_DELAY, C_DEATH_SYNC_OFFSET, AVG_ATTACK_SPEED, MAX_ATTACKMT, clanEmblems;
 var init_Entity = __esmMin((() => {
 	init_DBManager();
 	init_SkillConst();
@@ -320344,6 +320499,7 @@ var init_Entity = __esmMin((() => {
 		SkillConst_default.SR_RAMPAGEBLASTER
 	];
 	C_MULTIHIT_DELAY = 200;
+	C_DEATH_SYNC_OFFSET = 200;
 	AVG_ATTACK_SPEED = 432;
 	MAX_ATTACKMT = AVG_ATTACK_SPEED * 2;
 	clanEmblems = {};
@@ -325702,7 +325858,7 @@ function onResize(ui) {
 /**
 * Request move item from box to another
 */
-function requestMoveItem(index, fromContent, toContent, isAdding) {
+function requestMoveItem(index, fromContent, toContent, isAdding, transferAll = false) {
 	let count;
 	const item = isAdding ? _input[index] : _output[index];
 	const isStackable = item.type !== ItemType_default.WEAPON && item.type !== ItemType_default.EQUIP && item.type !== ItemType_default.PETEGG && item.type !== ItemType_default.PETEQUIP;
@@ -325711,7 +325867,7 @@ function requestMoveItem(index, fromContent, toContent, isAdding) {
 	if ((_type === NpcStore.Type.BUY || _type === NpcStore.Type.VENDING_STORE) && !isStackable && isAdding) {
 		if (toContent.querySelector(`.item[data-index="${item.index}"]`)) return false;
 	}
-	if (item.count === 1 || _type === NpcStore.Type.SELL && _preferences$2.select_all || !isStackable) {
+	if (transferAll || item.count === 1 || _type === NpcStore.Type.SELL && _preferences$2.select_all || !isStackable) {
 		transferItem(fromContent, toContent, isAdding, index, isFinite(item.count) ? item.count : 1);
 		return false;
 	}
@@ -325721,6 +325877,12 @@ function requestMoveItem(index, fromContent, toContent, isAdding) {
 		InputBox_default.remove();
 		if (_count > 0) transferItem(fromContent, toContent, isAdding, index, _count);
 	};
+}
+function transferSellItemStack(index) {
+	if (_type !== NpcStore.Type.SELL || !_input[index]) return false;
+	const root = NpcStore.getRoot();
+	requestMoveItem(index, root.querySelector(".InputWindow .content"), root.querySelector(".OutputWindow .content"), true, true);
+	return true;
 }
 /**
 * Drop an input in the InputWindow or OutputWindow
@@ -325747,6 +325909,11 @@ function onItemInfo(event) {
 	const item = _input[index];
 	event.stopImmediatePropagation();
 	if (!item) return false;
+	const inputWindow = NpcStore.getRoot().querySelector(".InputWindow");
+	if (_type === NpcStore.Type.SELL && event.altKey && event.which === 3 && inputWindow.contains(this)) {
+		transferSellItemStack(index);
+		return false;
+	}
 	if (ItemInfo_default.uid === item.ITID) {
 		ItemInfo_default.remove();
 		return false;
@@ -325852,6 +326019,7 @@ var init_NpcStore = __esmMin((() => {
 	init_InputBox();
 	init_ChatBox();
 	init_Inventory();
+	init_InventoryItemTransfer();
 	init_NpcStore$2();
 	init_NpcStore$1();
 	NpcStore = new GUIComponent("NpcStore", NpcStore_default$1);
@@ -326336,6 +326504,10 @@ var init_NpcStore = __esmMin((() => {
 			NpcStore.calculateWeight();
 		};
 	})();
+	NpcStore.inventoryTransferPriority = InventoryItemTransferPriority.NPC_STORE;
+	NpcStore.receiveInventoryItemStack = function receiveInventoryItemStack(item) {
+		return item ? transferSellItemStack(item.index) : false;
+	};
 	/**
 	* Handles the packet to send to the server when closing stores
 	*/
